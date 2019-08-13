@@ -16,6 +16,8 @@ nb-configuration.xml
 funclist
 nbproject/Makefile-*
 disassembly/
+nbproject/
+
 *.map
 
 # Prerequisites
