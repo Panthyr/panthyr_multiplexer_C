@@ -17,7 +17,6 @@
 #include <stdint.h>
 #include "hardware.h"
 #include "uart.h"
-#include "rtcc.h"
 
 /* METHODS */
 

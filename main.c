@@ -84,8 +84,6 @@ unsigned char ToSendData[BUFFLENGTH] = {}; // Message that needs to be send out
 unsigned int ToSendPort = 1;         // Where this message should go
 unsigned int MuxReceived = 0;       // Number of received chars in message
 bool MuxDoDemux = 0;                 // Flag if there's buffered RX from U3
-bool blockU3RxVars = 0;
-unsigned char MuxTempBuffer[BUFFLENGTH] = {};
 
 /* Variables for the heartbeat LED
    PWM cycle is 936 steps, so full off - full on cycle takes
@@ -339,7 +337,6 @@ int main(void) {
         
         if(MuxDoDemux){
             IPC20bits.U3RXIP = 0;  //    Disable UART3 RX interrupt
-//            blockU3RxVars = 1;
             MuxDoDemux = 0;             // must be before the loop to avoid race
             /* If a complete new frame comes in during the while loop below,
              * and then MuxDoDemux gets set to 0 at the end,
@@ -347,7 +344,6 @@ int main(void) {
             DeMuxTodo = MuxReceived;
             MuxReceived = 0;
             DeMuxStart = MuxMessStart;
-//            blockU3RxVars = 0;
             IPC20bits.U3RXIP = 1;  //    Re-enable UART3 RX interrupt
             while (DeMuxTodo > 0){
                 SendChar(MuxSourcePort, MuxCircBuf[DeMuxStart]);
