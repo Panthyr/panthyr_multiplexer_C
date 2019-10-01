@@ -53,18 +53,6 @@
 /* Variables for the UARTS */
 #define BUFFLENGTH 1024
 
-//char RadCircBuf[BUFFLENGTH] = {0};   // Circular buffer for UART1
-//unsigned int RadWrite = 0;           // Write position
-//unsigned int RadRead = 0;            // Read position
-//unsigned int RadFillLength = 0;      // Number of unprocessed chars in array
-//bool RadDoMux = 0;                   // Flag if there's buffered RX from U1
-//
-//char IrrCircBuf[BUFFLENGTH] = {0};   // Circular buffer for UART1
-//unsigned int IrrWrite = 0;           // Write position
-//unsigned int IrrRead = 0;            // Read position
-//unsigned int IrrFillLength = 0;      // Number of unprocessed chars in array
-//bool IrrDoMux = 0;                   // Flag if there's buffered RX from U2
-
 struct CircBuf{
     char Buff[BUFFLENGTH];
     unsigned int WritePos;           // Write position
@@ -101,7 +89,7 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _U1TXInterrupt ( void ){
 
 void __attribute__ ( ( interrupt, no_auto_psv ) ) _U1RXInterrupt ( void ){ 
     IFS0bits.U1RXIF = false; // clear interrupt bit
-    LED4_Toggle();
+    LED_Sens_Rx_Toggle();
     unsigned char x = U1RXREG;
 
     RadBuf.Buff[RadBuf.WritePos] = x;
@@ -118,7 +106,7 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _U2TXInterrupt ( void ){
 
 void __attribute__ ( ( interrupt, no_auto_psv ) ) _U2RXInterrupt ( void ){ 
     IFS1bits.U2RXIF = false; // clear interrupt bit
-    LED4_Toggle();
+    LED_Sens_Rx_Toggle();
     unsigned char x = U2RXREG;
     IrrBuf.Buff[IrrBuf.WritePos] = x;
     IrrBuf.FillLength++;
@@ -134,7 +122,7 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _U3TXInterrupt ( void ){
 
 void __attribute__ ( ( interrupt, no_auto_psv ) ) _U3RXInterrupt ( void ){ 
     IFS5bits.U3RXIF = false; // clear interrupt bit
-    LED5_Toggle();
+    LED_Mux_Rx_Toggle();
     unsigned char x = U3RXREG;
     switch(MuxPreamble){
         case 0:                             // Waiting for start of muxed message
@@ -148,7 +136,7 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _U3RXInterrupt ( void ){
             if (x == '('){
                 MuxPreamble++;
             } else {MuxPreamble =0;         // Incorrect preamble, restart
-                LED7_Toggle();
+                LED_Boot_Toggle();
             }
             break;
         case 2:
@@ -156,7 +144,7 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _U3RXInterrupt ( void ){
                 MuxSourcePort = x - 0x30;
                 MuxPreamble++;
             } else {
-                LED7_Toggle();
+                LED_Boot_Toggle();
                 MuxPreamble = 0;
             }
             break;
@@ -165,7 +153,7 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _U3RXInterrupt ( void ){
                 MuxExpectedChr = x;
                 MuxPreamble++;
             } else { 
-                LED7_Toggle();
+                LED_Boot_Toggle();
                 MuxPreamble = 0;
             }
             break;
@@ -173,7 +161,7 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _U3RXInterrupt ( void ){
             if (x == ')'){
                 MuxPreamble++;
             } else {
-                LED7_Toggle();
+                LED_Boot_Toggle();
                 MuxPreamble =0;         // Incorrect preamble, restart
             }
             break;
@@ -183,7 +171,7 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _U3RXInterrupt ( void ){
                 break;
             } else {
                 MuxPreamble =0;         // Incorrect preamble, restart
-                LED7_Toggle();
+                LED_Boot_Toggle();
             }
             break;
         case 6:
@@ -203,28 +191,34 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _U3RXInterrupt ( void ){
                 MuxPreamble = 0;
              } else {                           // No CR when expected, dump message
                 MuxPreamble =0;
-                LED7_Toggle();
+                LED_Boot_Toggle();
              }
     }
-//    SendChar(1,MuxPreamble);
-//    SendChar(1,x);
-//    SendChar(1,13);
-                
 }
+
+void __attribute__ ( ( interrupt, no_auto_psv ) ) _U4TXInterrupt ( void ){ 
+    IFS5bits.U4TXIF = false;
+}
+
+void __attribute__ ( ( interrupt, no_auto_psv ) ) _U4RXInterrupt ( void ){ 
+    IFS5bits.U4RXIF = false; // clear interrupt bit
+    LED_Sens_Rx_Toggle();
+}
+
 
 void __attribute__ ( ( interrupt, no_auto_psv ) ) _T1Interrupt (  ){
 /* ISR for TIMER 1 
-   Heartbeat LED6 (orange) and bootup led (Red)
+   Heartbeat LED_Heartbeat (orange) and bootup led (Red)
    0x3A8 is about 10ms (0.06% error)
    Higher PWMValue: Higher brightness
  */
     IFS0bits.T1IF = false;  // clear interrupt flag
     TMR1 = 0x0000;
     if(LedState){                   // Led is currently on
-        LED6_SetLow();          // switch off
+        LED_Heartbeat_SetLow();          // switch off
         PR1 = 0x3A8 - PWMValue;     // TMR1 set for off time (10ms - on time)
     }else{
-        LED6_SetHigh();
+        LED_Heartbeat_SetHigh();
         PR1 = PWMValue;
         if(CountUp){
             PWMValue = PWMValue + PWMStep;
@@ -245,14 +239,14 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _T1Interrupt (  ){
     }
     LedState = !LedState;
     /* Boot led shows that PIC has (re)started... 
-     red LED7 starts counting down from 200, decrementing each half PWM cycle.
+     red LED_Boot starts counting down from 200, decrementing each half PWM cycle.
      if it is not 0, decrement 1
      if, after decrementing it is zero, switch off boot led
     */
     if(bootLed){                    
         --bootLed;                  // First decrement counter
         if(!bootLed){               // If zero after decrement,
-            LED7_SetLow();     // Switch off
+            LED_Boot_SetLow();     // Switch off
         }
     }
 }
@@ -279,9 +273,9 @@ int main(void) {
     
     /*Initialize*/
     initHardware();         // Init all the hardware components
-    LED7_SetHigh();         // After startup, light red led for 1 second (100 PWM cycles)
+    LED_Boot_SetHigh();         // After startup, light red led for 1 second (100 PWM cycles)
     
-    RCONbits.SWDTEN = 0x01;    // Start Software WDT (512ms for PRE = POSTscaler = 128)
+    StartWDT();
     
     /*Init completed*/
     unsigned int UxFillLengthCopy = 0;

@@ -17,31 +17,56 @@ void initHardware( void ){
     InitU1();
     InitU2();
     InitU3();
+    InitU4();
     initTimer1();
     initTimer4();
 
     /* TP */    
     TP32_SetDigOut();
     TP35_SetDigOut();
-    
+    TP19_SetDig();
+    TP19_SetDigOut();
+        
     /* LEDS */
-    LED4_SetDigOut();
-    LED5_SetDigOut();
-    LED6_SetDigOut();
-    LED7_SetDigOut();
+    LED_Sens_Rx_SetDigOut();
+    LED_Mux_Rx_SetDigOut();
+    LED_Heartbeat_SetDigOut();
+    LED_Boot_SetDigOut();
 }
 
 void initPPS( void ){
-    __builtin_write_OSCCONL(OSCCON & 0xbf); // unlock PPS
+    __builtin_write_OSCCONL(OSCCON & 0xbf); // Special command to unlock PPS
+
+    // Outputs are set by assigning a function number to the pin address
+    // | RP | address          | function no
+    // | 23 | RPOR11bits.RP23R | 3  (U1Tx)
+    // | 24 | RPOR12bits.RP24R | 5  (U2Tx)
+    // |  7 | RPOR3bits.RP7R   | 19 (U3Tx)
+    // | 19 | RPOR9bits.RP19R  | 21 (U4Tx)
     
+    // Inputs are set by setting the pin number to the input function address
+    // | Func | address           | RP
+    // | U1Rx | RPINR18bits.U1RXR | 22 (0x16)
+    // | U2Rx | RPINR19bits.U2RXR | 13 (0xD)
+    // | U3Rx | RPINR17bits.U3RXR | 25 (0x19)
+    // | U4Rx | RPINR27bits.U4RXR | 20 (0x14)
+    
+    //UART1    
     RPOR11bits.RP23R = 0x0003;    // (U1Tx) RP23 pin gets function 3 (U1Tx)
     RPINR18bits.U1RXR = 0x0016;    //(U1Rx) Function U1Rx to pin 0x26 (rp22)
-    
+
+    //UART2    
     RPOR12bits.RP24R = 0x0005;    // (U2Tx) RP24 pin gets function 5 (U2Tx)
     RPINR19bits.U2RXR = 0x000D;    //(U2Rx) Function U2Rx to pin 0x0D (RP13)
 
-    RPOR9bits.RP19R = 0x0013;    // (U3Tx) RP19 pin gets function 19 (U3Tx)
-    RPINR17bits.U3RXR = 0x0014;    //(U3Rx) Function U3Rx to pin 0x0D (RP17)
+    //UART3
+    RPOR3bits.RP7R = 0x0013;    // (U3Tx) RP7 pin gets function 19 (U3Tx)
+    RPINR17bits.U3RXR = 0x0019;    //(U3Rx) Function U3Rx to pin 0x19 (RP25)
+
+    //UART4
+    RPOR9bits.RP19R = 0x0015;    // (U4Tx) RP19 pin gets function 21 (U4Tx)
+    RPINR27bits.U4RXR = 0x0014;    //(U3Rx) Function U3Rx to pin 0x14 (RP20)
+    
     __builtin_write_OSCCONL(OSCCON | 0x40); // lock   PPS
 }
 void initOscillator( void ){
@@ -104,7 +129,7 @@ void InitU1(void){
    if (RCONbits.WDTO){
        SendString(1, "---Reset by WDT---\r");
    }
-   SendString(1, "---Init UART1 completed---\r");
+   SendString(1, "---Init UART1 (RAD) completed---\r");
 }
 
 void InitU2(void){
@@ -143,7 +168,7 @@ void InitU2(void){
    if (RCONbits.WDTO){
        SendString(2, "---Reset by WDT---\r");
    }
-   SendString(2, "---Init UART2 completed---\r");
+   SendString(2, "---Init UART2 (IRR) completed---\r");
 }
 
 void InitU3(void){
@@ -161,7 +186,7 @@ void InitU3(void){
    // ADMADDR 0; ADMMASK 0; 
    U3ADMD = 0x0000;
 
-   // Enable interrupt for UART2Rx
+   // Enable interrupt for UART3Rx
    IEC5bits.U3RXIE = 1;
 
     //Make sure to set LAT bit corresponding to TxPin as high before UART initialization
@@ -170,7 +195,34 @@ void InitU3(void){
     if (RCONbits.WDTO){
        SendString(3, "---Reset by WDT---\r");
    }
-   SendString(3, "---Init UART3 completed---\r");
+   SendString(3, "---Init UART3 (MUX) completed---\r");
+}
+
+void InitU4(void){
+   /* UART LINK */
+    U4_Tx_SetDigOut();
+    U4_Tx_SetHighOut();
+    U4_Rx_SetDigIn();   
+    
+   // STSEL 1; IREN disabled; PDSEL 8N; UARTEN disabled; RTSMD disabled; USIDL disabled; WAKE disabled; ABAUD disabled; LPBACK disabled; BRGH enabled; URXINV disabled; UEN TX_RX; 
+   U4MODE = 0x0008;  // disabling UARTEN bit   
+   // UTXISEL0 TX_ONE_CHAR; UTXINV disabled; OERR NO_ERROR_cleared; URXISEL RX_ONE_CHAR; UTXBRK COMPLETED; UTXEN disabled; ADDEN disabled; 
+   U4STA = 0x0000;
+   // BaudRate = 9600; Frequency = 6000000 Hz; U1BRG 77; 
+   U4BRG = 0x9B;
+   // ADMADDR 0; ADMMASK 0; 
+   U4ADMD = 0x0000;
+
+   // Enable interrupt for UART2Rx
+   IEC5bits.U4RXIE = 1;
+
+    //Make sure to set LAT bit corresponding to TxPin as high before UART initialization
+   U4MODEbits.UARTEN = 1;  // enabling UART ON bit
+   U4STAbits.UTXEN = 1;
+    if (RCONbits.WDTO){
+       SendString(4, "---Reset by WDT---\r");
+   }
+   SendString(4, "---Init UART4 (AUX) completed---\r");
 }
 
 void initTimer1( void ){

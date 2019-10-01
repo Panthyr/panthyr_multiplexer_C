@@ -18,6 +18,7 @@ void SendString( unsigned int port, char *buffer ){
             }while( *++buffer != 0x00);            // 0x00 is end of string
             while( !U1STAbits.TRMT );           // Transmit Shift Register is not empty and the transmit buffer is not empty
             break;
+
         case 2:
             do{
                 while( U2STAbits.UTXBF );       // Wait while Transmit buffer is full
@@ -33,8 +34,18 @@ void SendString( unsigned int port, char *buffer ){
             }while( *++buffer != 0x00);            // 0x00 is end of string
             while( !U3STAbits.TRMT );           // Transmit Shift Register is not empty or the transmit buffer is not empty
             break;
+        
+        case 4:
+            do{
+                while(U4STAbits.UTXBF);
+                U4TXREG = *buffer;
+            }while(*++buffer != 0x00);
+            while( !U4STAbits.TRMT );
+            break;
+
         default:
             break;
+
     }
 }
 
