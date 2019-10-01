@@ -226,14 +226,14 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _T1Interrupt (  ){
             PWMValue = PWMValue - PWMStep;
         }
         if (PWMValue > 0x100){
-            PWMStep = 10;   // Value of PWMStep changes depending on duty cycle to compensate for non-linearity of led brightness
+            PWMStep = 15;   // Value of PWMStep changes depending on duty cycle to compensate for non-linearity of led brightness
         }else{
-            PWMStep = 3;
+            PWMStep = 2;
         }
         if(PWMValue>0x390){
             CountUp = 0;     // count down again
         }
-        if(PWMValue<30){
+        if(PWMValue<10){
             CountUp = 1;     // count up
         }
     }
