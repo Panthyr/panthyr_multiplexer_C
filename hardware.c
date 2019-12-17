@@ -36,7 +36,9 @@ void initHardware( void ){
 
 void initPPS( void ){
     __builtin_write_OSCCONL(OSCCON & 0xbf); // Special command to unlock PPS
-
+    
+    
+    /* PINOUT FOR TOP v0.2 / BOTTOM v0.1 */
     // Outputs are set by assigning a function number to the pin address
     // | RP | address          | function no
     // | 23 | RPOR11bits.RP23R | 3  (U1Tx)

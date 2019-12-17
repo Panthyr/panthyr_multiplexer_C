@@ -1,8 +1,7 @@
 /*
- * File:   newmainXC16.c
- * Author: michielt
- *
- * Created on June 12, 2018, 3:09 PM
+ * Hypermaq/Panthyr serial port multiplex
+ * SW version v0.1
+ * For HW TOP v0.2, Bottom v0.1
  */
 // CONFIG1
 #pragma config WDTPS = PS512    // Watchdog Timer Postscaler Select->1:512
