@@ -1,6 +1,6 @@
 /*
  * Hypermaq/Panthyr serial port multiplex
- * SW version v0.1
+ * SW version v0.2
  * For HW TOP v0.2, Bottom v0.1
  */
 // CONFIG1
