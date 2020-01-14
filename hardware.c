@@ -131,7 +131,7 @@ void InitU1(void){
    if (RCONbits.WDTO){
        SendString(1, "---Reset by WDT---\r");
    }
-   SendString(1, "---Init UART1 (RAD) completed---\r");
+//   SendString(1, "---Init UART1 (RAD) completed---\r");  // sending a string to the sensor while it is booting can cause the instrument to lock up...
 }
 
 void InitU2(void){
@@ -170,7 +170,7 @@ void InitU2(void){
    if (RCONbits.WDTO){
        SendString(2, "---Reset by WDT---\r");
    }
-   SendString(2, "---Init UART2 (IRR) completed---\r");
+//   SendString(2, "---Init UART2 (IRR) completed---\r");  // sending a string to the sensor while it is booting can cause the instrument to lock up...
 }
 
 void InitU3(void){

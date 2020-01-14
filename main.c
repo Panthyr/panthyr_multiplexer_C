@@ -330,7 +330,7 @@ int main(void) {
         
         if(MuxDoDemux){
             IPC20bits.U3RXIP = 0;  //    Disable UART3 RX interrupt
-            MuxDoDemux = 0;             // must be before the loop to avoid race
+            MuxDoDemux = 0;             // must be before the loop to avoid race condition
             /* If a complete new frame comes in during the while loop below,
              * and then MuxDoDemux gets set to 0 at the end,
                if no new tmr4 interrupt gets called, that buffer part never gets written out */
