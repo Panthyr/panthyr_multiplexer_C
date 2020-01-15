@@ -1,9 +1,3 @@
-/*
- * File:   uart.c
- * Author: michielt
- *
- * Created on February 15, 2018, 7:45 PM
- */
 #include <xc.h>
 #include "uart.h"
 

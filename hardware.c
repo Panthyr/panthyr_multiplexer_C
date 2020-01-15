@@ -1,10 +1,3 @@
-/*
- * File:   hardware.c
- * Author: michielt
- *
- * Created on February 15, 2018, 7:27 PM
- */
-
 #include <xc.h>
 #include "hardware.h"
 
