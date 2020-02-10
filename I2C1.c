@@ -13,6 +13,16 @@
 unsigned char I2C1_State;
 const int CONST_I2C1_Timeout = 750;
 
+void __attribute__ ( ( interrupt, no_auto_psv ) ) _MI2C1Interrupt ( void ){
+    // I2C1 Master events interrupt
+    IFS1bits.MI2C1IF = 0;
+}
+
+void __attribute__ ( ( interrupt, no_auto_psv ) ) _I2C1BCLInterrupt ( void ){
+    // I2C1 Bus collision interrupt
+    LED_Boot_SetHigh();
+    IFS5bits.I2C1BCIF = 0;
+}
 
 void I2C1_Init (void){
     // Combination of everything to set up bus

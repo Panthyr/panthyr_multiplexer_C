@@ -82,6 +82,18 @@ bool CountUp = 1;               // For the PWM of the heartbeat led
 unsigned int bootLed = 500;     // Used to light orange led for 2.5s after boot (400 half PWM 0.01s cycles)
                                 // Decremented each half PWM duty cycle until zero
 
+
+void __attribute__ ( ( interrupt, no_auto_psv ) ) _MI2C1Interrupt ( void ){
+    // I2C1 Master events interrupt
+    IFS1bits.MI2C1IF = 0;
+}
+
+void __attribute__ ( ( interrupt, no_auto_psv ) ) _I2C1BCLInterrupt ( void ){
+    // I2C1 Bus collision interrupt
+    LED_Boot_SetHigh();
+    IFS5bits.I2C1BCIF = 0;
+}
+
 void __attribute__ ( ( interrupt, no_auto_psv ) ) _U1TXInterrupt ( void ){ 
     IFS0bits.U1TXIF = false;
 }
