@@ -58,7 +58,7 @@ struct CircBuf{
     unsigned int ReadPos;            // Read position
     unsigned int FillLength;      // Number of unprocessed chars in array
     bool DoMux;                   // Flag if there's buffered RX from Ux
-}RadBuf, IrrBuf = {0,0,0,0,0};
+}RadBuf, IrrBuf = {{0,0,0,0,0}};
 
 char MuxCircBuf[BUFFLENGTH] = {0};   // Circular buffer for UART3
 unsigned int MuxWrite = 0;           // Write position
