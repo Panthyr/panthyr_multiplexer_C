@@ -1,7 +1,7 @@
 /*
  * File:   I2C1.c
  * Author: dieterv
- * v0.1
+ * v0.2
  * Created on February 3, 2020, 3:09 PM
  */
 
@@ -9,9 +9,12 @@
 #include <xc.h>
 #include "I2C1.h"
 #include <libpic30.h>
+#include "uart.h"
+#include "stdint.h"
+
 //-------------------Variables-------------------
-unsigned char I2C1_State;
-const int CONST_I2C1_Timeout = 750;
+uint8_t I2C1_State = 1;
+const uint16_t CONST_I2C1_Timeout = 750;
 
 void __attribute__ ( ( interrupt, no_auto_psv ) ) _MI2C1Interrupt ( void ){
     // I2C1 Master events interrupt
@@ -20,22 +23,24 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _MI2C1Interrupt ( void ){
 
 void __attribute__ ( ( interrupt, no_auto_psv ) ) _I2C1BCLInterrupt ( void ){
     // I2C1 Bus collision interrupt
-    LED_Boot_SetHigh();
     IFS5bits.I2C1BCIF = 0;
 }
 
-void I2C1_Init (void){
+int8_t I2C1_Init (void){
     // Combination of everything to set up bus
-    I2C1_InitModule();
-    I2C1_ClearErrors();
+    if(I2C1_InitModule() == I2C1_OK && I2C1_ClearErrors() == I2C1_OK){
+        I2C1_Bus_ClrDirty;
+        return I2C1_OK;
+    }
+    return I2C1_Err_BusDirty;
 }
 
-void I2C1_InitModule (void) 
+int8_t I2C1_InitModule (void) 
     /* Set pins, module config and start module */
 {
     I2C1CONLbits.I2CEN = 0;     // Disables module
     __delay_us(10);
-    I2C1_ResetBus();            // Toggle clock line to reset any hanging devices
+    I2C1_ResetBusPins();            // Toggle clock line to reset any hanging devices
     
     /* Set pins digital, input, open drain */
     I2C1_SDA_SetDigital();
@@ -64,12 +69,13 @@ void I2C1_InitModule (void)
 
     I2C1CONLbits.I2CEN = 1;     // Enables module and claims pins
     __delay_us(10);
+    return I2C1_OK;
 }
 
-int I2C1_ResetBus(void)
+int8_t I2C1_ResetBusPins(void)
     /* Toggles the clock line a couple of times to reset devices waiting for comm */
 {
-    unsigned char cycleCLK = 10;
+    uint8_t cycleCLK = 10;
     I2C1CONLbits.I2CEN = 0;     // Disables module, frees pins for manual use
     
     I2C1_SCL_SetDigOut();
@@ -97,7 +103,7 @@ int I2C1_ResetBus(void)
     }
     
     // Both should be high by now
-    if ((I2C1_SCL_State & I2C1_SDA_State) == 1){
+    if ((I2C1_SCL_State & I2C1_SDA_State) != 1){
         return I2C1_Err_SDA_Low;                // SDA stuck low
     }
     
@@ -110,55 +116,49 @@ int I2C1_ResetBus(void)
     return I2C1_OK;
 }
 
-void I2C1_ClearErrors(void){
+int8_t I2C1_ClearErrors(void){
     // Clear bus collision and receive wait flags
     I2C1STATbits.IWCOL = 0;                     // clear write collision detect
     I2C1STATbits.BCL = 0;                       // clear bus collision detect
     I2C1CONLbits.RCEN = 0;                      // cancel receive wait
+    return I2C1_OK;
 }
 
-int I2C1_PollDevice (char DeviceAddress){
-    // Checks state of bus and if device at address is alive
-    // Returns:
-    // I2C1_OK
-    // I2C1_Err_BadAddress
-    // I2C1_Err_CommunicationFail
+int8_t I2C1_RecoverBus(){
+    // try to reset the bus by disabling, performing reset and enabling again
+    // returns:
     // I2C1_Err_Hardware
-    int ReturnValue;
-    char TargetAddress;
-    TargetAddress = (DeviceAddress <<1) & ~0x1; // write address with 0 at end
+    // I2C1_OK
+
+    // first disable peripheral
+    I2C1CONLbits.I2CEN = 0;
     
-    // Make sure bus is ok first
-    if (I2C1_Bus_Dirty){
-        I2C1_ClearErrors();
-        if(I2C1_RecoverBus()==I2C1_OK){
-            I2C1_Bus_ClrDirty;
-        }else{
+    // clear errors from stat
+    I2C1_ClearErrors();
+    
+    // then try to reset
+    if (I2C1_ResetBusPins() != I2C1_OK){
+        return I2C1_Err_Hardware;
+    }
+        
+    // enable again
+    I2C1CONLbits.I2CEN = 1;
+    __delay_us(1);
+    
+    I2C1_Bus_ClrDirty;
+    return I2C1_OK;
+}
+
+int8_t I2C1_CheckBus(){
+    if(I2C1_Bus_Dirty){
+        if(I2C1_RecoverBus() != I2C1_OK){
             return I2C1_Err_Hardware;
         }
     }
-    
-    if (I2C1_Start() == I2C1_OK){
-        ReturnValue = I2C1_WriteSingleByte((char)TargetAddress);
-        if (I2C1_Stop() == I2C1_OK){
-            switch(ReturnValue){
-                case I2C1_ACK:
-                    return I2C1_OK;
-                case I2C1_Err_NAK:
-                    return I2C1_Err_BadAddress;
-                default:
-                    return I2C1_Err_CommunicationFail;
-            }
-        }else{
-            I2C1_Bus_SetDirty;
-            return I2C1_Err_CommunicationFail;
-        }
-    }
-    // should never arrive down here, but still...
-    return I2C1_Err_BadAddress;
+    return I2C1_OK;
 }
 
-int I2C1_Start(){
+int8_t I2C1_Start(){
     //Initiates start sequence and waits till finished or timeout
     //Returns:
     //I2C_OK
@@ -196,7 +196,7 @@ int I2C1_Start(){
     return I2C1_OK;
 }
 
-int I2C1_Stop(){
+int8_t I2C1_Stop(){
     //Initiates stop sequence and waits till finished or timeout
     //Returns:
     //I2C_OK
@@ -224,7 +224,7 @@ int I2C1_Stop(){
     return I2C1_OK;
 }
 
-int I2C1_Restart(){
+int8_t I2C1_Restart(){
     // Initiates repeated start and waits till finished or timeout
     // Returns:
     // I2C_OK
@@ -252,29 +252,42 @@ int I2C1_Restart(){
     return I2C1_OK;
 }
 
-
-int I2C1_RecoverBus(){
-    // try to reset the bus by disabling, performing reset and enabling again
-    // returns:
-    // I2C1_Err_Hardware
+int8_t I2C1_PollDevice (uint8_t DeviceAddress){
+    // Checks state of bus and if device at address is alive
+    // Returns:
     // I2C1_OK
-
-    // first disable peripheral
-    I2C1CONLbits.I2CEN = 0;
+    // I2C1_Err_BadAddress
+    // I2C1_Err_CommunicationFail
+    // I2C1_Err_Hardware
+    int ReturnValue;
+    uint8_t TargetAddress;
+    TargetAddress = (DeviceAddress <<1) & ~0x1; // write address with 0 at end
     
-    // then try to reset
-    if ( I2C1_ResetBus()<0){
-        return I2C1_Err_Hardware;
+    // Make sure bus is ok first
+    if (I2C1_CheckBus() != I2C1_OK){
+        return I2C1_Err_BusDirty;
     }
     
-    // enable again
-    I2C1CONLbits.I2CEN = 1;
-    __delay_us(1);
-    
-    return I2C1_OK;
+    if (I2C1_Start() == I2C1_OK){
+        ReturnValue = I2C1_WriteSingleByte(TargetAddress);
+        if (I2C1_Stop() == I2C1_OK){
+            switch(ReturnValue){
+                case I2C1_ACK:
+                    return I2C1_OK;
+                case I2C1_Err_NAK:
+                    return I2C1_Err_BadAddress;
+                default:
+                    return I2C1_Err_CommunicationFail;
+            }
+        }else{
+            I2C1_Bus_SetDirty;
+            return I2C1_Err_CommunicationFail;
+        }
+    }
+    return I2C1_Err_BadAddress;
 }
 
-int I2C1_WriteSingleByte(char cData){
+int8_t I2C1_WriteSingleByte(uint8_t cData){
     int timeout = CONST_I2C1_Timeout;
     
     // although this should never happen, check if transmit buffer full
@@ -301,13 +314,15 @@ int I2C1_WriteSingleByte(char cData){
     
     // check the response
     if(I2C1STATbits.ACKSTAT){
+//        SendString(4,"NAK\n");
         return I2C1_Err_NAK;                // weirdly enough, ACKSTAT is set for NAK
     }else{
+//        SendString(4,"ACK\n");
         return I2C1_OK;
     }
 }
 
-int I2C1_Write(char DeviceAddress, unsigned char SubAddress, char *Payload, int ByteCnt){
+int8_t I2C1_Write(uint8_t DeviceAddress, uint8_t SubAddress, const uint8_t *Payload, uint8_t ByteCnt){
     //Writes buffered data to target address/sub address.
     //Returns:
     //I2C_OK
@@ -316,15 +331,15 @@ int I2C1_Write(char DeviceAddress, unsigned char SubAddress, char *Payload, int 
     //I2C_Err_CommFail
     int PayloadByte = 0;
     int ReturnValue = 0;
-    char SlaveWriteAddr;
+    uint8_t SlaveWriteAddr;
     
-    if(I2C1_Bus_Dirty){
-        //TODO: try to clear/recover bus instead of just returning error
+    // Make sure bus is ok first
+    if (I2C1_CheckBus() != I2C1_OK){
         return I2C1_Err_BusDirty;
     }
     
     // send start
-    if(I2C1_Start() < 0){
+    if(I2C1_Start() != I2C1_OK){
         I2C1_Bus_SetDirty;
         return I2C1_Err_CommunicationFail;
     }
@@ -374,7 +389,7 @@ int I2C1_Write(char DeviceAddress, unsigned char SubAddress, char *Payload, int 
     return I2C1_OK;
 }    
 
-int I2C1_ReadSingleByte(char ACKRequired){
+int8_t I2C1_ReadSingleByte(uint8_t ACKRequired){
     //Initiates read of one byte from slave on I2C bus
     //Slave must already be addressed, and in read mode
     //Waits until completed before returning
@@ -421,20 +436,20 @@ int I2C1_ReadSingleByte(char ACKRequired){
     return I2C1RCV;                     // return contents of buffer, reading clears RBF
 }
 
-int I2C1_Read(char DeviceAddress, unsigned char SubAddress, unsigned char *ReadBuffer, int ByteCnt){
+int8_t I2C1_Read(uint8_t DeviceAddress, uint8_t SubAddress, uint8_t *ReadBuffer, uint8_t ByteCnt){
     // Reads data from target into buffer
     // Returns:
     // I2C_Ok
     // I2C_Err_BadAddr
     // I2C_Err_BusDirty
     // I2C_Err_CommFail
-    char SlaveReadAddress;
-    char SlaveWriteAddress;
-    int ReturnValue;
-    int PayloadByte;
+    uint8_t SlaveReadAddress;
+    uint8_t SlaveWriteAddress;
+    uint16_t ReturnValue;
+    uint16_t PayloadByte;
     
-    // check bus
-    if(I2C1_Bus_Dirty){                     // TODO: recover bus instead of just returning
+    // Make sure bus is ok first
+    if (I2C1_CheckBus() != I2C1_OK){
         return I2C1_Err_BusDirty;
     }
     
