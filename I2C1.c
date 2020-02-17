@@ -59,9 +59,6 @@ int8_t I2C1_InitModule (void)
     I2C1CONLbits.DISSLW = 1;    // 1 = Slew rate control is disabled for Standard Speed mode (100 kHz, also disabled for 1 MHz mode)
     IEC1bits.MI2C1IE = 1;		// Enable I2C master interrupt
     I2C1STAT = 0x00;            // Clear all status flags
-//    I2C1CONLbits.STRICT = 0;    // 0 = Reserved addressing would be Acknowledged
-//    I2C1CONLbits.ACKDT = 0;     // 0 = An ACK is sent
-//    I2C1CONLbits.RCEN = 0;      // 0 = Receive sequence is not in progress
     
     /* MI2C1 - I2C1 Master Events */
     IFS1bits.MI2C1IF = 0;       // clear the master interrupt flag    
@@ -133,7 +130,7 @@ int8_t I2C1_RecoverBus(){
     // first disable peripheral
     I2C1CONLbits.I2CEN = 0;
     
-    // clear errors from stat
+    // clear errors from stat SFR
     I2C1_ClearErrors();
     
     // then try to reset

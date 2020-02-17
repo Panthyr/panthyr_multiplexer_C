@@ -1,12 +1,13 @@
 #include <xc.h>
 #include "hardware.h"
-
+#include "I2C1.h"
 
 void initHardware( void ){
     
     initPPS();
     initOscillator();
     initInterrupts();
+    I2C1_Init();
     InitU1();
     InitU2();
     InitU3();
@@ -122,7 +123,7 @@ void InitU1(void){
    U1MODEbits.UARTEN = 1;  // enabling UART ON bit
    U1STAbits.UTXEN = 1;
    if (RCONbits.WDTO){
-       SendString(1, "---Reset by WDT---\r");
+       Uart_SendString(1, "---Reset by WDT---\r");
    }
 //   SendString(1, "---Init UART1 (RAD) completed---\r");  // sending a string to the sensor while it is booting can cause the instrument to lock up...
 }
@@ -161,7 +162,7 @@ void InitU2(void){
    U2MODEbits.UARTEN = 1;  // enabling UART ON bit
    U2STAbits.UTXEN = 1;
    if (RCONbits.WDTO){
-       SendString(2, "---Reset by WDT---\r");
+       Uart_SendString(2, "---Reset by WDT---\r");
    }
 //   SendString(2, "---Init UART2 (IRR) completed---\r");  // sending a string to the sensor while it is booting can cause the instrument to lock up...
 }
@@ -188,9 +189,9 @@ void InitU3(void){
    U3MODEbits.UARTEN = 1;  // enabling UART ON bit
    U3STAbits.UTXEN = 1;
     if (RCONbits.WDTO){
-       SendString(3, "---Reset by WDT---\r");
+       Uart_SendString(3, "---Reset by WDT---\r");
    }
-   SendString(3, "---Init UART3 (MUX) completed---\r");
+   Uart_SendString(3, "---Init UART3 (MUX) completed---\r");
 }
 
 void InitU4(void){
@@ -215,9 +216,9 @@ void InitU4(void){
    U4MODEbits.UARTEN = 1;  // enabling UART ON bit
    U4STAbits.UTXEN = 1;
     if (RCONbits.WDTO){
-       SendString(4, "---Reset by WDT---\r");
+       Uart_SendString(4, "---Reset by WDT---\r");
    }
-   SendString(4, "---Init UART4 (AUX) completed---\r");
+   Uart_SendString(4, "---Init UART4 (AUX) completed---\r");
 }
 
 void initTimer1( void ){

@@ -14,6 +14,17 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "uart.h"
+#include "Sensirion_SHT31.h"
+#include "I2C1.h"
+
+
+typedef unsigned int            UINT;
+typedef unsigned char           UINT8;
+typedef unsigned short int      UINT16;
+typedef unsigned char           BYTE;                           /* 8-bit unsigned  */
+typedef unsigned short int      WORD;                           /* 16-bit unsigned */
+typedef unsigned long           DWORD;                          /* 32-bit unsigned */
+
 
 /***********/
 /* METHODS */
@@ -101,14 +112,6 @@ void initTimer4( void );
 #define LED_Boot_SetDigOut()        _TRISC5 = 0
 
 #define StartWDT()                  RCONbits.SWDTEN = 0x01;    // Start Software WDT (512ms for PRE = POSTscaler = 128)
-
-
-typedef unsigned int            UINT;
-typedef unsigned char           UINT8;
-typedef unsigned short int      UINT16;
-typedef unsigned char           BYTE;                           /* 8-bit unsigned  */
-typedef unsigned short int      WORD;                           /* 16-bit unsigned */
-typedef unsigned long           DWORD;                          /* 32-bit unsigned */
 
 #ifdef	__cplusplus
 extern "C" {

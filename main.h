@@ -11,12 +11,15 @@
 #define	MAIN_H
 
 #include <xc.h> // include processor files - each processor file is guarded.  
-
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include "hardware.h"
 #include "uart.h"
+#include "i2c1.h"
+#include "Sensirion_SHT31.h"
+#define FCY 6000000UL    // Instruction cycle frequency, Hz - required for __delayXXX() to work
+#include <libpic30.h>
 
 /* METHODS */
 
@@ -52,17 +55,6 @@ typedef union
         __EXTENSION BYTE b7:1;
     } bits;
 } BYTE_VAL, BYTE_BITS;
-
-#ifdef	__cplusplus
-extern "C" {
-#endif /* __cplusplus */
-
-    // TODO If C++ is being used, regular C code needs function names to have C 
-    // linkage so the functions can be used by the c code. 
-
-#ifdef	__cplusplus
-}
-#endif /* __cplusplus */
 
 #endif	/* XC_HEADER_TEMPLATE_H */
 

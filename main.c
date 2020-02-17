@@ -7,7 +7,7 @@
 #pragma config WDTPS = PS512    // Watchdog Timer Postscaler Select->1:512
 #pragma config FWPSA = PR128    // WDT Prescaler Ratio Select->1:128
 #pragma config WINDIS = OFF    // Windowed WDT Disable->Standard Watchdog Timer
-#pragma config FWDTEN = SWON    // Watchdog Timer controlled by SWDTEN
+#pragma config FWDTEN = OFF    // Watchdog Timer controlled by SWDTEN
 #pragma config ICS = PGx1    // Emulator Pin Placement Select bits->Emulator functions are shared with PGEC1/PGED1
 #pragma config LPCFG = OFF    // Low power regulator control->Disabled - regardless of RETEN
 #pragma config GWRP = OFF    // General Segment Write Protect->Write to program memory allowed
@@ -48,7 +48,11 @@
 
 #include <xc.h>
 #include "main.h"
-
+#include <libpic30.h>
+#include "I2C1.h"
+#include "Sensirion_SHT31.h"
+#include "stdint.h"
+#include "string.h"
 /* Variables for the UARTS */
 #define BUFFLENGTH 1024
 
@@ -86,6 +90,19 @@ unsigned int bootLed = 500;     // Used to light orange led for 2.5s after boot 
 void __attribute__ ( ( interrupt, no_auto_psv ) ) _U1TXInterrupt ( void ){ 
     IFS0bits.U1TXIF = false;
 }
+
+void __attribute__ ( ( interrupt, no_auto_psv ) ) _DefaultInterrupt ( void ){ 
+    UINT8 det = 0;
+    det += 1;
+    det += 1;
+}
+
+void __attribute__ ( ( interrupt, no_auto_psv ) )  _MathError ( void ){ 
+    UINT8 det = 0;
+    det += 1;
+    det += 1;
+}
+
 
 void __attribute__ ( ( interrupt, no_auto_psv ) ) _U1RXInterrupt ( void ){ 
     IFS0bits.U1RXIF = false; // clear interrupt bit
@@ -214,6 +231,7 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _T1Interrupt (  ){
  */
     IFS0bits.T1IF = false;  // clear interrupt flag
     TMR1 = 0x0000;
+    ClrWdt();               // kick wdt
     if(LedState){                   // Led is currently on
         LED_Heartbeat_SetLow();          // switch off
         PR1 = 0x3A8 - PWMValue;     // TMR1 set for off time (10ms - on time)
@@ -275,16 +293,39 @@ int main(void) {
     initHardware();         // Init all the hardware components
     LED_Boot_SetHigh();         // After startup, light red led for 1 second (100 PWM cycles)
     
-    StartWDT();
-    
+//    StartWDT();
+  
     /*Init completed*/
     unsigned int UxFillLengthCopy = 0;
     unsigned int UxRead = 0;  
     unsigned int DeMuxStart = 0;
     unsigned int DeMuxTodo = 0;
+    signed int SHT31_Temp = 0;
+    unsigned char SHT31_RH = 0;
+    if (SHT31_InitReset() == 0){
+        Uart_SendString(4,"\nSHT31 Init done\n");
+    }
+    IFS0 = 0;
+    IFS1 = 0;
+    IFS2 = 0;
+    IFS3 = 0;
+    IFS4 = 0;
+    IFS5 = 0;
+    IFS6 = 0;
+    IFS7 = 0;
     /*Main loop*/
     while(1){
-        ClrWdt();
+        unsigned char PrintoutTemp[22] = "Temp*100: ";
+        unsigned char PrintoutRH[7] = "RH:";
+        SHT31_SingleShot(&SHT31_Temp, &SHT31_RH, 3);
+        itoa(&PrintoutTemp[9], SHT31_Temp, 10);
+        itoa(&PrintoutRH[3], SHT31_RH, 10);
+        strcat(PrintoutTemp, "\xF8");
+        strcat(PrintoutTemp, "C\t");
+        strcat(PrintoutRH, "%\n");
+        strcat(PrintoutTemp, PrintoutRH);
+        Uart_SendString(4, PrintoutTemp);
+        
         if(RadBuf.DoMux){
             /* Make working copies of the fill length and read position, 
              They can change if new data comes in during transmit. */
@@ -292,18 +333,18 @@ int main(void) {
             UxRead = RadBuf.ReadPos;
             RadBuf.ReadPos = RadBuf.WritePos;
             RadBuf.FillLength = 0;
-            SendString(3, "_(1");              // Send prefix
-            SendChar(3, UxFillLengthCopy);      // Send number of chars as one byte
-            SendString(3,")_");
+            Uart_SendString(3, "_(1");              // Send prefix
+            Uart_SendChar(3, UxFillLengthCopy);      // Send number of chars as one byte
+            Uart_SendString(3,")_");
             while(UxFillLengthCopy > 0){
-                SendChar(3, RadBuf.Buff[UxRead]);
+                Uart_SendChar(3, RadBuf.Buff[UxRead]);
                 UxRead++;
                 if (UxRead == BUFFLENGTH){
                     UxRead = 0;
                 }
                 UxFillLengthCopy--;
             }
-            SendChar(3, 13);            // Send CR
+            Uart_SendChar(3, 13);            // Send CR
             RadBuf.DoMux = false;    // The flag might be a new one but we don't care
         }
         
@@ -314,18 +355,18 @@ int main(void) {
             UxRead = IrrBuf.ReadPos;
             IrrBuf.FillLength = 0;
             IrrBuf.ReadPos = IrrBuf.WritePos;
-            SendString(3, "_(2");              // Send prefix
-            SendChar(3, UxFillLengthCopy);      // Send number of chars as one byte
-            SendString(3,")_");
+            Uart_SendString(3, "_(2");              // Send prefix
+            Uart_SendChar(3, UxFillLengthCopy);      // Send number of chars as one byte
+            Uart_SendString(3,")_");
             while(UxFillLengthCopy > 0){
-                SendChar(3, IrrBuf.Buff[UxRead]);
+                Uart_SendChar(3, IrrBuf.Buff[UxRead]);
                 UxRead++;
                 if (UxRead == BUFFLENGTH){
                     UxRead = 0;
                 }
                 UxFillLengthCopy--;
             }
-            SendChar(3, 13);            // Send CR
+            Uart_SendChar(3, 13);            // Send CR
             IrrBuf.DoMux = false;           // The flag might be a new one but we don't care
         }
         
@@ -340,7 +381,7 @@ int main(void) {
             DeMuxStart = MuxMessStart;
             IPC20bits.U3RXIP = 1;  //    Re-enable UART3 RX interrupt
             while (DeMuxTodo > 0){
-                SendChar(MuxSourcePort, MuxCircBuf[DeMuxStart]);
+                Uart_SendChar(MuxSourcePort, MuxCircBuf[DeMuxStart]);
                 DeMuxStart++;
                 if (DeMuxStart == BUFFLENGTH){
                     DeMuxStart = 0;
@@ -348,6 +389,7 @@ int main(void) {
                 DeMuxTodo--;
             }
         }
+        __delay_ms(1000);
     }
     return 0;
 }
