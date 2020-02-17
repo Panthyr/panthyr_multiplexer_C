@@ -1,7 +1,7 @@
 /*
- * File:   I2C1.c
+ * File:   I2C1.c for PIC24FJ128GB204
  * Author: dieterv
- * v0.2
+ * v0.3
  * Created on February 3, 2020, 3:09 PM
  */
 

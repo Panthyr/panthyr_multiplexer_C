@@ -10,10 +10,12 @@
 #include "hardware.h"
 #include <time.h>
 
-void SendString( unsigned int port, char *buffer );
-void SendStringFancy( unsigned int port, char *buffer );
-void SendRaw( unsigned int port, char *buffer, unsigned int length );
-void SendChar( unsigned int port, char ch);
+extern char AsciiResult[5];
+
+void Uart_SendString( unsigned int port, char * buffer );
+void Uart_SendStringFancy( unsigned int port, char *buffer );
+void Uart_SendRaw( unsigned int port, char *buffer, unsigned int length );
+void Uart_SendChar( unsigned int port, char ch);
 
 #ifdef	__cplusplus
 extern "C" {

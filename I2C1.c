@@ -1,7 +1,7 @@
 /*
- * File:   I2C1.c
+ * File:   I2C1.c for PIC24FJ128GB204
  * Author: dieterv
- * v0.2
+ * v0.3
  * Created on February 3, 2020, 3:09 PM
  */
 
@@ -13,8 +13,8 @@
 #include "stdint.h"
 
 //-------------------Variables-------------------
-uint8_t I2C1_State = 1;
-const uint16_t CONST_I2C1_Timeout = 750;
+uint8_t I2C1_State = 1;                         // start with dirty bus
+const uint16_t CONST_I2C1_Timeout = 750;        // can possibly be lowered
 
 void __attribute__ ( ( interrupt, no_auto_psv ) ) _MI2C1Interrupt ( void ){
     // I2C1 Master events interrupt
