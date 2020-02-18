@@ -6,6 +6,11 @@
 
 #include <xc.h>
 #include "uart.h"
+//#include <math.h>
+#include <string.h>
+#include <stdlib.h>
+//#include "hardware.h"
+//#include <time.h>
 
 void Uart_SendString( unsigned int port, char *buffer ){
     /* Sends string at *buffer until 0x00 char, not adding any other char

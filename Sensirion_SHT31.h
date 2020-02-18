@@ -15,9 +15,8 @@
 
 #ifndef XC_SHT31
 #define	XC_SHT31
-
 #include <xc.h> // include processor files - each processor file is guarded.  
-#include "I2C1.h"
+//#include "I2C1.h"
 
 //--------------------Variables--------------------
 extern char AsciiResult[5];
@@ -26,10 +25,11 @@ extern char AsciiResult[5];
 //--------------------Functions--------------------
 
 int8_t SHT31_InitReset (void);                             // high level
-int8_t SHT31_HeaterOnOff(uint8_t);                         // high level
-int8_t SHT31_SingleShot(int16_t *, uint8_t *, uint8_t);    // high level
-int8_t SHT31_GetData(uint8_t [], uint8_t Repeatability);
-int8_t SHT31_CheckCRC(uint8_t []);
-int8_t SHT31_ConvertData(uint8_t[], int16_t *, uint8_t *);
+int8_t SHT31_SingleShot(int16_t * pTempResult, uint8_t * pRHResult, uint8_t Repeatability);    // high level
+int8_t SHT31_HeaterOnOff(uint8_t OnOff);                         // high level
+int8_t SHT31_GetData(uint8_t MeasurementData[], uint8_t Repeatability);
+int8_t SHT31_CheckCRC(uint8_t DataToCheck[]);
+int8_t SHT31_ConvertData(uint8_t MeasurementData[], int16_t * pTempResult, uint8_t * pRHResult);
+
 #endif
 

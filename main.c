@@ -48,11 +48,14 @@
 
 #include <xc.h>
 #include "main.h"
-#include <libpic30.h>
+#define FCY 6000000UL    // Instruction cycle frequency, Hz - required for __delayXXX() to work
+#include <libpic30.h>    // contains delay functions
 #include "I2C1.h"
-#include "Sensirion_SHT31.h"
-#include "stdint.h"
-#include "string.h"
+#include "Sensirion_SHT31.h"        // temp/RH sensor
+#include "stdint.h"                 // for typedefs
+#include "string.h"                 // for strcat
+
+
 /* Variables for the UARTS */
 #define BUFFLENGTH 1024
 
@@ -92,13 +95,13 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _U1TXInterrupt ( void ){
 }
 
 void __attribute__ ( ( interrupt, no_auto_psv ) ) _DefaultInterrupt ( void ){ 
-    UINT8 det = 0;
+    uint8_t det = 0;
     det += 1;
     det += 1;
 }
 
 void __attribute__ ( ( interrupt, no_auto_psv ) )  _MathError ( void ){ 
-    UINT8 det = 0;
+    uint8_t det = 0;
     det += 1;
     det += 1;
 }

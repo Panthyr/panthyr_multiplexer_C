@@ -9,8 +9,8 @@
 #ifndef XC_I2C1
 #define	XC_I2C1
 #include <xc.h> // include processor files - each processor file is guarded. 
-#define FCY 6000000UL    // Instruction cycle frequency, Hz - required for __delayXXX() to work
-#include <libpic30.h>
+//#define FCY 6000000UL    // Instruction cycle frequency, Hz - required for __delayXXX() to work
+//#include <libpic30.h>
 
 //--------------------Variables--------------------
 extern unsigned char I2C1_State;
@@ -30,12 +30,12 @@ extern unsigned char I2C1_State;
 #define I2C1_SCL_SetOpenDrain()     ODCBbits.ODB8 = 0
 #define I2C1_SCL_SetHigh()          _LATB8 = 1
 #define I2C1_SCL_SetLow()           _LATB8 = 0
-#define I2C1_ToggleClock()          _LATB8 ^= 1
+//#define I2C1_ToggleClock()          _LATB8 ^= 1
 #define I2C1_SCL_State              PORTBbits.RB8
 
 /* I2C MACROS */
-#define I2C1_SendStart()            I2C1CONLbits.SEN = 1
-#define I2C1_SendStop()             I2C1CONLbits.PEN = 1
+//#define I2C1_SendStart()            I2C1CONLbits.SEN = 1
+//#define I2C1_SendStop()             I2C1CONLbits.PEN = 1
 
 /* Return values */
 #define I2C1_OK                     1

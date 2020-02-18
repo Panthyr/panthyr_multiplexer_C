@@ -23,11 +23,7 @@
 
 /* METHODS */
 
-/* GENERIC STUFF */
-#define    HIGH             1
-#define    LOW              0
-#define    SET              1
-#define    CLEAR            0
+
 
 /* Specify an extension for GCC based compilers */
 #if defined(__GNUC__)
@@ -40,21 +36,21 @@
     #define __PACKED
 #endif
 
-typedef union
-{
-    BYTE Val;
-    struct __PACKED
-    {
-        __EXTENSION BYTE b0:1;
-        __EXTENSION BYTE b1:1;
-        __EXTENSION BYTE b2:1;
-        __EXTENSION BYTE b3:1;
-        __EXTENSION BYTE b4:1;
-        __EXTENSION BYTE b5:1;
-        __EXTENSION BYTE b6:1;
-        __EXTENSION BYTE b7:1;
-    } bits;
-} BYTE_VAL, BYTE_BITS;
+//typedef union
+//{
+//    BYTE Val;
+//    struct __PACKED
+//    {
+//        __EXTENSION BYTE b0:1;
+//        __EXTENSION BYTE b1:1;
+//        __EXTENSION BYTE b2:1;
+//        __EXTENSION BYTE b3:1;
+//        __EXTENSION BYTE b4:1;
+//        __EXTENSION BYTE b5:1;
+//        __EXTENSION BYTE b6:1;
+//        __EXTENSION BYTE b7:1;
+//    } bits;
+//} BYTE_VAL, BYTE_BITS;
 
 #endif	/* XC_HEADER_TEMPLATE_H */
 

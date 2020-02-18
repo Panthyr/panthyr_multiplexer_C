@@ -8,6 +8,7 @@
 
 #include <xc.h>
 #include "I2C1.h"
+#define FCY 6000000UL    // Instruction cycle frequency, Hz - required for __delayXXX() to work
 #include <libpic30.h>
 #include "uart.h"
 #include "stdint.h"

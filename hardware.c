@@ -1,6 +1,7 @@
 #include <xc.h>
 #include "hardware.h"
 #include "I2C1.h"
+#include "uart.h"
 
 void initHardware( void ){
     

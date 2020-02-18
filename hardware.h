@@ -13,17 +13,17 @@
 #include <xc.h> // include processor files - each processor file is guarded.  
 #include <stdbool.h>
 #include <stdint.h>
-#include "uart.h"
-#include "Sensirion_SHT31.h"
-#include "I2C1.h"
+//#include "uart.h"
+//#include "Sensirion_SHT31.h"
+//#include "I2C1.h"
 
 
-typedef unsigned int            UINT;
-typedef unsigned char           UINT8;
-typedef unsigned short int      UINT16;
-typedef unsigned char           BYTE;                           /* 8-bit unsigned  */
-typedef unsigned short int      WORD;                           /* 16-bit unsigned */
-typedef unsigned long           DWORD;                          /* 32-bit unsigned */
+//typedef unsigned int            UINT;
+//typedef unsigned char           UINT8;
+//typedef unsigned short int      UINT16;
+//typedef unsigned char           BYTE;                           /* 8-bit unsigned  */
+//typedef unsigned short int      WORD;                           /* 16-bit unsigned */
+//typedef unsigned long           DWORD;                          /* 32-bit unsigned */
 
 
 /***********/
@@ -43,6 +43,12 @@ void initTimer4( void );
 /***********/
 /* DEFINES */
 /***********/
+
+/* GENERIC STUFF */
+#define    HIGH             1
+#define    LOW              0
+#define    SET              1
+#define    CLEAR            0
 
 #define U1_Tx_SetDigOut()           _TRISC7=0
 #define U1_Tx_SetHighOut()          _LATC7=1
@@ -67,7 +73,7 @@ void initTimer4( void );
 #define    DIGITAL          0
 #define    ANALOG           1
 
-/* TP */
+/* TestPoints */
 #define TP19_SetHigh()          _LATA0 = 1
 #define TP19_SetLow()           _LATA0 = 0
 #define TP19_Toggle()           _LATA0 ^= 1
@@ -93,11 +99,11 @@ void initTimer4( void );
 #define LED_Sens_Rx_Toggle()           _LATB2 ^= 1
 #define LED_Sens_Rx_SetDigOut()        _TRISB2 = 0
 
-#define LED_Mux_Rx                    _LATB3
-#define LED_Mux_Rx_SetHigh()          _LATB3 = 1
-#define LED_Mux_Rx_SetLow()           _LATB3 = 0
-#define LED_Mux_Rx_Toggle()           _LATB3 ^= 1
-#define LED_Mux_Rx_SetDigOut()        _TRISB3 = 0
+#define LED_Mux_Rx                      _LATB3
+#define LED_Mux_Rx_SetHigh()            _LATB3 = 1
+#define LED_Mux_Rx_SetLow()             _LATB3 = 0
+#define LED_Mux_Rx_Toggle()             _LATB3 ^= 1
+#define LED_Mux_Rx_SetDigOut()          _TRISB3 = 0
 
 #define LED_Heartbeat                    _LATA10
 #define LED_Heartbeat_SetHigh()          _LATA10 = 1
@@ -105,24 +111,18 @@ void initTimer4( void );
 #define LED_Heartbeat_Toggle()           _LATA10 ^= 1
 #define LED_Heartbeat_SetDigOut()        _TRISA10 = 0
 
-#define LED_Boot                    _LATC5
-#define LED_Boot_SetHigh()          _LATC5 = 1
-#define LED_Boot_SetLow()           _LATC5 = 0
-#define LED_Boot_Toggle()           _LATC5 ^= 1
-#define LED_Boot_SetDigOut()        _TRISC5 = 0
+#define LED_Boot                        _LATC5
+#define LED_Boot_SetHigh()              _LATC5 = 1
+#define LED_Boot_SetLow()               _LATC5 = 0
+#define LED_Boot_Toggle()               _LATC5 ^= 1
+#define LED_Boot_SetDigOut()            _TRISC5 = 0
+
+/* Top/bottom switch */
+#define TopBotSwitch                    _LATA8
+#define TopBotSwitch_SetDigIn()         _TRISA8 = 1
+
 
 #define StartWDT()                  RCONbits.SWDTEN = 0x01;    // Start Software WDT (512ms for PRE = POSTscaler = 128)
-
-#ifdef	__cplusplus
-extern "C" {
-#endif /* __cplusplus */
-
-    // TODO If C++ is being used, regular C code needs function names to have C 
-    // linkage so the functions can be used by the c code. 
-
-#ifdef	__cplusplus
-}
-#endif /* __cplusplus */
 
 #endif	/* XC_HEADER_TEMPLATE_H */
 
