@@ -27,6 +27,9 @@ void initHardware( void ){
     LED_Mux_Rx_SetDigOut();
     LED_Heartbeat_SetDigOut();
     LED_Boot_SetDigOut();
+    
+    /* SWITCH */
+    TopBotSwitch_SetDigIn();
 }
 
 void initPPS( void ){

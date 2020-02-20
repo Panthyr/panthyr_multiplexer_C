@@ -11,19 +11,12 @@
 #define	MAIN_H
 
 #include <xc.h> // include processor files - each processor file is guarded.  
-#include <stdlib.h>
-#include <stdbool.h>
 #include <stdint.h>
-#include "hardware.h"
-#include "uart.h"
-#include "i2c1.h"
-#include "Sensirion_SHT31.h"
-#define FCY 6000000UL    // Instruction cycle frequency, Hz - required for __delayXXX() to work
-#include <libpic30.h>
+
 
 /* METHODS */
 
-
+void Print_Data(int16_t *pTemp, uint8_t *pRH);
 
 /* Specify an extension for GCC based compilers */
 #if defined(__GNUC__)

@@ -54,7 +54,12 @@
 #include "Sensirion_SHT31.h"        // temp/RH sensor
 #include "stdint.h"                 // for typedefs
 #include "string.h"                 // for strcat
+#include <stdbool.h>
+#include "hardware.h"               // 
+#include "uart.h"
+#include <stdlib.h>                 // itoa
 
+// Variables
 
 /* Variables for the UARTS */
 #define BUFFLENGTH 1024
@@ -77,7 +82,10 @@ unsigned int MuxPreamble = 0;       // Counter for preamble
 unsigned char ToSendData[BUFFLENGTH] = {}; // Message that needs to be send out
 unsigned int ToSendPort = 1;         // Where this message should go
 unsigned int MuxReceived = 0;       // Number of received chars in message
-bool MuxDoDemux = 0;                 // Flag if there's buffered RX from U3
+bool MuxDoDemux = 0;                // Flag if there's buffered RX from U3
+
+char AuxRx[10] = {0};            // Buffer for the received commands on UART4
+uint8_t AuxRxPos = 0;               // Write position in the buffer
 
 /* Variables for the heartbeat LED
    PWM cycle is 936 steps, so full off - full on cycle takes
@@ -90,24 +98,19 @@ unsigned int bootLed = 500;     // Used to light orange led for 2.5s after boot 
                                 // Decremented each half PWM duty cycle until zero
 
 
-void __attribute__ ( ( interrupt, no_auto_psv ) ) _U1TXInterrupt ( void ){ 
-    IFS0bits.U1TXIF = false;
-}
-
 void __attribute__ ( ( interrupt, no_auto_psv ) ) _DefaultInterrupt ( void ){ 
-    uint8_t det = 0;
-    det += 1;
-    det += 1;
+    Uart_SendString(1, "DefaultInterrupt");
+    Uart_SendString(2, "DefaultInterrupt");
+    Uart_SendString(3, "DefaultInterrupt");
+    Uart_SendString(4, "DefaultInterrupt");
 }
 
-void __attribute__ ( ( interrupt, no_auto_psv ) )  _MathError ( void ){ 
-    uint8_t det = 0;
-    det += 1;
-    det += 1;
+void __attribute__ ( ( interrupt, no_auto_psv ) ) _U1TXInterrupt ( void ){ 
+IFS0bits.U1TXIF = false;
 }
 
-
-void __attribute__ ( ( interrupt, no_auto_psv ) ) _U1RXInterrupt ( void ){ 
+void __attribute__ ( ( interrupt, no_auto_psv ) ) _U1RXInterrupt ( void ){
+    // radiance data
     IFS0bits.U1RXIF = false; // clear interrupt bit
     LED_Sens_Rx_Toggle();
     unsigned char x = U1RXREG;
@@ -125,6 +128,7 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _U2TXInterrupt ( void ){
 }
 
 void __attribute__ ( ( interrupt, no_auto_psv ) ) _U2RXInterrupt ( void ){ 
+    // irradiance data
     IFS1bits.U2RXIF = false; // clear interrupt bit
     LED_Sens_Rx_Toggle();
     unsigned char x = U2RXREG;
@@ -141,13 +145,13 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _U3TXInterrupt ( void ){
 }
 
 void __attribute__ ( ( interrupt, no_auto_psv ) ) _U3RXInterrupt ( void ){ 
+    // muxed data
     IFS5bits.U3RXIF = false; // clear interrupt bit
     LED_Mux_Rx_Toggle();
     unsigned char x = U3RXREG;
     switch(MuxPreamble){
         case 0:                             // Waiting for start of muxed message
             if (x == '_'){                  // Correct start char
-//                while(blockU3RxVars){};
                 MuxMessStart = MuxWrite;    // "reserve" start position
                 MuxPreamble++;              // One char of preamble correct
             } 
@@ -155,16 +159,15 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _U3RXInterrupt ( void ){
         case 1:
             if (x == '('){
                 MuxPreamble++;
-            } else {MuxPreamble =0;         // Incorrect preamble, restart
-                LED_Boot_Toggle();
+            } else {
+                MuxPreamble =0;         // Incorrect preamble, restart
             }
             break;
         case 2:
-            if (x - 0x30 < 5){                     // Port number should be 1,2 or 4
+            if (x - 0x30 < 5){                     // Port number should be 1,2 or 4 (4 can be temp request)
                 MuxSourcePort = x - 0x30;
                 MuxPreamble++;
             } else {
-                LED_Boot_Toggle();
                 MuxPreamble = 0;
             }
             break;
@@ -173,32 +176,28 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _U3RXInterrupt ( void ){
                 MuxExpectedChr = x;
                 MuxPreamble++;
             } else { 
-                LED_Boot_Toggle();
                 MuxPreamble = 0;
             }
             break;
-        case 4:
+        case 4:                             // _(x) has been received
             if (x == ')'){
                 MuxPreamble++;
             } else {
-                LED_Boot_Toggle();
                 MuxPreamble =0;         // Incorrect preamble, restart
             }
             break;
         case 5:
-            if (x == '_'){
+            if (x == '_'){                  // _(x)_ has been received
                 MuxPreamble++;
                 break;
             } else {
                 MuxPreamble =0;         // Incorrect preamble, restart
-                LED_Boot_Toggle();
             }
             break;
         case 6:
             if (MuxExpectedChr > 0){           // Store data until all expected chars received
                 MuxCircBuf[MuxWrite] = x;
                 MuxExpectedChr--;
-//                while(blockU3RxVars){};
                 MuxReceived++;
                 MuxWrite++;
                 if (MuxWrite == BUFFLENGTH){
@@ -211,7 +210,6 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _U3RXInterrupt ( void ){
                 MuxPreamble = 0;
              } else {                           // No CR when expected, dump message
                 MuxPreamble =0;
-                LED_Boot_Toggle();
              }
     }
 }
@@ -221,8 +219,12 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _U4TXInterrupt ( void ){
 }
 
 void __attribute__ ( ( interrupt, no_auto_psv ) ) _U4RXInterrupt ( void ){ 
+    // aux data
+    // command is *vitals?
     IFS5bits.U4RXIF = false; // clear interrupt bit
-    LED_Sens_Rx_Toggle();
+    if (ImBottom){
+        
+    }
 }
 
 
@@ -290,13 +292,25 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _T4Interrupt (  ){
 //    }
 }
 
+void Print_Data(int16_t *pTemp, uint8_t *pRH){
+    char PrintoutTemp[22] = "Temp*100: ";
+    itoa(&PrintoutTemp[9], *pTemp, 10);
+    char PrintoutRH[7] = "RH:";
+    itoa(&PrintoutRH[3], *pRH, 10);
+    strcat(PrintoutTemp, "\xF8");
+    strcat(PrintoutTemp, "C\t");
+    strcat(PrintoutRH, "%\n");
+    strcat(PrintoutTemp, PrintoutRH);
+    Uart_SendString(4, PrintoutTemp);
+} 
+
 int main(void) {
     
     /*Initialize*/
     initHardware();         // Init all the hardware components
     LED_Boot_SetHigh();         // After startup, light red led for 1 second (100 PWM cycles)
     
-//    StartWDT();
+    StartWDT();
   
     /*Init completed*/
     unsigned int UxFillLengthCopy = 0;
@@ -310,16 +324,8 @@ int main(void) {
     }
     /*Main loop*/
     while(1){
-        unsigned char PrintoutTemp[22] = "Temp*100: ";
-        unsigned char PrintoutRH[7] = "RH:";
         SHT31_SingleShot(&SHT31_Temp, &SHT31_RH, 3);
-        itoa(&PrintoutTemp[9], SHT31_Temp, 10);
-        itoa(&PrintoutRH[3], SHT31_RH, 10);
-        strcat(PrintoutTemp, "\xF8");
-        strcat(PrintoutTemp, "C\t");
-        strcat(PrintoutRH, "%\n");
-        strcat(PrintoutTemp, PrintoutRH);
-        Uart_SendString(4, PrintoutTemp);
+        Print_Data(&SHT31_Temp, &SHT31_RH);
         
         if(RadBuf.DoMux){
             /* Make working copies of the fill length and read position, 

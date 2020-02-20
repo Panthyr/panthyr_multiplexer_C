@@ -49,7 +49,12 @@ void initTimer4( void );
 #define    LOW              0
 #define    SET              1
 #define    CLEAR            0
+#define    INPUT_PIN        1
+#define    OUTPUT_PIN       0
+#define    DIGITAL          0
+#define    ANALOG           1
 
+/* UART DEFS */
 #define U1_Tx_SetDigOut()           _TRISC7=0
 #define U1_Tx_SetHighOut()          _LATC7=1
 #define U1_Rx_SetDigIn()            _TRISC6=1
@@ -68,12 +73,8 @@ void initTimer4( void );
 #define U4_Rx_SetDig()              _ANSC4=0
 #define U4_Rx_SetDigIn()            _TRISC4=1
 
-#define    INPUT_PIN        1
-#define    OUTPUT_PIN       0
-#define    DIGITAL          0
-#define    ANALOG           1
 
-/* TestPoints */
+/* TEST POINTS */
 #define TP19_SetHigh()          _LATA0 = 1
 #define TP19_SetLow()           _LATA0 = 0
 #define TP19_Toggle()           _LATA0 ^= 1
@@ -92,7 +93,6 @@ void initTimer4( void );
 #define TP35_SetDigOut()        _TRISA9 = 0
 
 /* LEDS */
-
 #define LED_Sens_Rx                    _LATB2
 #define LED_Sens_Rx_SetHigh()          _LATB2 = 1
 #define LED_Sens_Rx_SetLow()           _LATB2 = 0
@@ -117,11 +117,13 @@ void initTimer4( void );
 #define LED_Boot_Toggle()               _LATC5 ^= 1
 #define LED_Boot_SetDigOut()            _TRISC5 = 0
 
-/* Top/bottom switch */
+/* SWITCH */
 #define TopBotSwitch                    _LATA8
 #define TopBotSwitch_SetDigIn()         _TRISA8 = 1
+#define ImTop                           PORTAbits.RA8 == 1
+#define ImBottom                        PORTAbits.RA8 == 0  
 
-
+/* WATCHDOG TIMER */
 #define StartWDT()                  RCONbits.SWDTEN = 0x01;    // Start Software WDT (512ms for PRE = POSTscaler = 128)
 
 #endif	/* XC_HEADER_TEMPLATE_H */
