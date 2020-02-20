@@ -82,10 +82,17 @@ unsigned int MuxPreamble = 0;       // Counter for preamble
 unsigned char ToSendData[BUFFLENGTH] = {}; // Message that needs to be send out
 unsigned int ToSendPort = 1;         // Where this message should go
 unsigned int MuxReceived = 0;       // Number of received chars in message
-bool MuxDoDemux = 0;                // Flag if there's buffered RX from U3
 
-char AuxRx[10] = {0};            // Buffer for the received commands on UART4
+char AuxRx[20] = {0};            // Buffer for the received commands on UART4
 uint8_t AuxRxPos = 0;               // Write position in the buffer
+
+/* FLAGS */
+volatile bool flagMuxDoDemux = 0;                // Flag if there's buffered RX from U3
+volatile uint8_t flagVitalsRequested = 0;        // 1 if requested from aux serial, 2 if through mux
+volatile bool flagWaitingForVitalsFromMux;       // to identify that we've requested data from "the other side"
+
+signed int SHT31_Temp = 0;
+unsigned char SHT31_RH = 0;
 
 /* Variables for the heartbeat LED
    PWM cycle is 936 steps, so full off - full on cycle takes
@@ -206,7 +213,7 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _U3RXInterrupt ( void ){
                 break;
              } else if ( x == 13){
                 //send data out
-                MuxDoDemux = 1;
+                flagMuxDoDemux = 1;
                 MuxPreamble = 0;
              } else {                           // No CR when expected, dump message
                 MuxPreamble =0;
@@ -219,11 +226,59 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _U4TXInterrupt ( void ){
 }
 
 void __attribute__ ( ( interrupt, no_auto_psv ) ) _U4RXInterrupt ( void ){ 
-    // aux data
-    // command is *vitals?
+    // this interrupt waits for a message start (either ? or !),
+    // then buffers the command up to the * character
+    // buffer is 20 bytes, max command is 18 bytes (20 - start ? or ! - end *)
+    // if a known command is received, it sets its flag for the main loop to handle
+    // if it gets more than 20 bytes, or an unknown command or a new * character,
+    // it clears the buffer and restarts
+
+    // possible commands:
+    
+    // ?vitals*:
+    // command for requesting temp and RH is ?vitals* (all lowercase!)
+    // replies are in the format !xxx,yyy,zzz*
+    // each "field" is RH or temp*100 of top or bottom
+    // temp top: ttxxxx, temp bottom: tbxxxx 
+    // RH top: htxxx, RH bottom: hbxxx
+    // if the board does not get a reply from the other side over the mux
+    // within x (to be determined) amount of time, it only sends its own data
+    
     IFS5bits.U4RXIF = false; // clear interrupt bit
-    if (ImBottom){
-        
+    char x = U4RXREG;
+    switch(x){
+        case '!':           // beginning of new command
+            memset(AuxRx, 0, sizeof(AuxRx));    // start new receive operation, clear previous content
+            AuxRx[0] = '!';    
+            AuxRxPos = 1;   // wait for the next character to come in
+            break;
+        case '?':           // beginning of new request
+            memset(AuxRx, 0, sizeof(AuxRx));    // start new receive operation, clear previous content
+            AuxRx[0] = '?';    
+            AuxRxPos = 1;   // wait for the next character to come in
+            break;
+        case '*':           // end of command/request, check what has been requested
+            AuxRx[AuxRxPos++] = '*';      // add the * to the buffer and set to next position
+            AuxRx[AuxRxPos] = 0;        // add 0 (should not be needed since array was initialized with zeros?)
+            
+            /* check for correct commands*/
+            if (strcmp( AuxRx, "?vitals*") == 0){
+                flagVitalsRequested = 1;
+            }
+            
+            AuxRxPos = 0;       // either a valid command was passed and the appropriate flag set,
+            memset(AuxRx, 0, sizeof(AuxRx));        // or the command was invalid. Either way, restart receive
+            break;
+        default:                // not one of the special characters we're looking for
+            if (AuxRxPos > 0){              // should already have received ? or !
+                AuxRx[AuxRxPos++] = x;      // add character and set to next position
+            }
+            break;
+    }
+    
+    if (AuxRxPos > 20){         // too many chars to be valid, restart rx operation
+        AuxRxPos = 0;
+        memset(AuxRx, 0, sizeof(AuxRx));;   // clear buffer
     }
 }
 
@@ -292,40 +347,64 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _T4Interrupt (  ){
 //    }
 }
 
-void Print_Data(int16_t *pTemp, uint8_t *pRH){
-    char PrintoutTemp[22] = "Temp*100: ";
-    itoa(&PrintoutTemp[9], *pTemp, 10);
-    char PrintoutRH[7] = "RH:";
-    itoa(&PrintoutRH[3], *pRH, 10);
-    strcat(PrintoutTemp, "\xF8");
-    strcat(PrintoutTemp, "C\t");
-    strcat(PrintoutRH, "%\n");
-    strcat(PrintoutTemp, PrintoutRH);
-    Uart_SendString(4, PrintoutTemp);
-} 
+uint8_t getVitals(void){
+    // flagVitalsRequested can be 1 (requested locally) or 2(requested remotely over mux)
+    // get local temp/rh, send them out of the mux (if requested remotely) or 
+    // uart4 (if requested locally)
+    // if requested locally, send request over mux and set flag to wait for it
+    char PrintoutTemp[13] = {};
+    char PrintoutHum[6] = {};
+    uint16_t i = 0;
+    
+    if (flagVitalsRequested == 1){          // vitals requested from aux serial port (local)
+        // first line should ask other side for vitals
+        // requestRemote temp
+    }
+    // get the local values
+    SHT31_SingleShot(&SHT31_Temp, &SHT31_RH, 3);
+    // create message, regardless of where it should be sent to
+    formatData(PrintoutTemp, PrintoutHum);
+    
+    if (flagVitalsRequested == 1){      // local request, wait for remote response
+        Uart_SendString(4, PrintoutTemp);
+    }
+    return 1;
+}
+
+void formatData(char PrintoutTemp[], char PrintoutHum[]){
+    if (ImBottom){
+        strcpy(PrintoutTemp, "tb");        
+        strcpy(PrintoutHum, ",hb");
+    }else{
+        strcpy(PrintoutTemp, "tt");        
+        strcpy(PrintoutHum, ",ht");
+    }
+    itoa(&PrintoutTemp[2], SHT31_Temp, 10);
+    itoa(&PrintoutHum[3], SHT31_RH, 10);
+    strcat(PrintoutTemp, PrintoutHum);
+}
 
 int main(void) {
     
     /*Initialize*/
-    initHardware();         // Init all the hardware components
-    LED_Boot_SetHigh();         // After startup, light red led for 1 second (100 PWM cycles)
-    
+    initHardware();         // Init all the hardware components and setup pins
+    LED_Boot_SetHigh();     // After startup, light red led for 1 second (100 PWM cycles)
+
     StartWDT();
-  
-    /*Init completed*/
-    unsigned int UxFillLengthCopy = 0;
-    unsigned int UxRead = 0;  
+      /*Init completed*/
+    
+    unsigned int UxFillLengthCopy = 0;      // will hold length of message in buffer
+    unsigned int UxRead = 0;                // read position in mux
     unsigned int DeMuxStart = 0;
     unsigned int DeMuxTodo = 0;
-    signed int SHT31_Temp = 0;
-    unsigned char SHT31_RH = 0;
-    if (SHT31_InitReset() == 0){
-        Uart_SendString(4,"\nSHT31 Init done\n");
-    }
+
     /*Main loop*/
     while(1){
-        SHT31_SingleShot(&SHT31_Temp, &SHT31_RH, 3);
-        Print_Data(&SHT31_Temp, &SHT31_RH);
+        // check if request have been received over mux or aux serial
+        if (flagVitalsRequested > 0){
+            getVitals();
+            flagVitalsRequested = 0;
+        }
         
         if(RadBuf.DoMux){
             /* Make working copies of the fill length and read position, 
@@ -371,9 +450,9 @@ int main(void) {
             IrrBuf.DoMux = false;           // The flag might be a new one but we don't care
         }
         
-        if(MuxDoDemux){
+        if(flagMuxDoDemux){
             IPC20bits.U3RXIP = 0;  //    Disable UART3 RX interrupt
-            MuxDoDemux = 0;             // must be before the loop to avoid race condition
+            flagMuxDoDemux = 0;             // must be before the loop to avoid race condition
             /* If a complete new frame comes in during the while loop below,
              * and then MuxDoDemux gets set to 0 at the end,
                if no new tmr4 interrupt gets called, that buffer part never gets written out */

@@ -16,7 +16,8 @@
 
 /* METHODS */
 
-void Print_Data(int16_t *pTemp, uint8_t *pRH);
+uint8_t getVitals(void);
+void formatData(char PrintoutTemp[], char PrintoutHum[]);
 
 /* Specify an extension for GCC based compilers */
 #if defined(__GNUC__)
