@@ -11,16 +11,12 @@
 #define	UART_H
 
 #include <xc.h> // include processor files - each processor file is guarded.  
-//#include <math.h>
-//#include <string.h>
-//#include <stdlib.h>
-//#include "hardware.h"
-//#include <time.h>
 
 /* METHODS */
-void Uart_SendString( unsigned int port, char * buffer );
-void Uart_SendRaw( unsigned int port, char *buffer, unsigned int length );
-void Uart_SendChar( unsigned int port, char ch);
+void Uart_SendString( unsigned int port, const char * buffer );
+void Uart_SendStringNL( unsigned int port, const char * buffer );
+void Uart_SendRaw( unsigned int port, const char * buffer, unsigned int length );
+void Uart_SendChar( unsigned int port, const char ch);
 
 #endif	/* XC_HEADER_TEMPLATE_H */
 

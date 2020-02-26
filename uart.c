@@ -6,13 +6,15 @@
 
 #include <xc.h>
 #include "uart.h"
-//#include <math.h>
 #include <string.h>
 #include <stdlib.h>
-//#include "hardware.h"
-//#include <time.h>
 
-void Uart_SendString( unsigned int port, char *buffer ){
+void Uart_SendStringNL( unsigned int port, const char *buffer ){
+    Uart_SendString(port, buffer);
+    Uart_SendChar(port, '\n');
+}
+
+void Uart_SendString( unsigned int port, const char *buffer ){
     /* Sends string at *buffer until 0x00 char, not adding any other char
      */
     switch(port){
@@ -54,7 +56,7 @@ void Uart_SendString( unsigned int port, char *buffer ){
     }
 }
 
-void Uart_SendRaw( unsigned int port, char *buffer, unsigned int length ){ 
+void Uart_SendRaw( unsigned int port, const char *buffer, unsigned int length ){ 
     char target[10]={"("};
     char suffix[2]={")"};
     utoa(target+1, length, 10);     // Add to target at position +1
@@ -105,7 +107,7 @@ void Uart_SendRaw( unsigned int port, char *buffer, unsigned int length ){
     }
 }
 
-void Uart_SendChar( unsigned int port, char ch){ 
+void Uart_SendChar( unsigned int port, const char ch){ 
     switch(port){
         case 1:
             while( U1STAbits.UTXBF );    /* Wait while Transmit buffer is full */
