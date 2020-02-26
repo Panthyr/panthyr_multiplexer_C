@@ -84,15 +84,16 @@ void initOscillator( void ){
     REFOTRIML = 0x0000;
 }
 void initInterrupts (void) {
-    /* Set priority for interrupts: Rx 1, Tx and Timers 2 */
-    IPC3bits.U1TXIP = 2;  //    UTXI: U1TX - UART1 Transmitter    Priority: 2
-    IPC2bits.U1RXIP = 1;  //    URXI: U1RX - UART1 Receiver     Priority: 1
-    IPC7bits.U2TXIP = 2;  //    UTXI: U2TX - UART2 Transmitter    Priority: 2
-    IPC7bits.U2RXIP = 1;  //    URXI: U2RX - UART2 Receiver     Priority: 1
-    IPC20bits.U3TXIP = 2;  //    UTXI: U3TX - UART3 Transmitter    Priority: 2
-    IPC20bits.U3RXIP = 1;  //    URXI: U3RX - UART3 Receiver     Priority: 1   
-    IPC0bits.T1IP = 1;    //    TI: T1 - Timer1    Priority: 2
-    IPC6bits.T4IP = 1;    //    T4: T4 - Timer4    Priority: 2
+    /* Set priority for interrupts: uart Rx/Tx and Timer 1 and 4 */
+    IPC3bits.U1TXIP = 0;    // Disable Uart1 TX interrupt
+    IPC2bits.U1RXIP = 1;    // URXI: U1RX - UART1 Receiver     Priority: 1
+    IPC7bits.U2TXIP = 0;    // Disable Uart2 TX interrupt
+    IPC7bits.U2RXIP = 1;    // URXI: U2RX - UART2 Receiver     Priority: 1
+    IPC20bits.U3TXIP = 0;   // Disable Uart3 TX interrupt
+    IPC20bits.U3RXIP = 1;   // URXI: U3RX - UART3 Receiver     Priority: 1   
+    IPC22bits.U4TXIP = 0;   // Disable Uart4 TX interrupt
+    IPC0bits.T1IP = 1;      // TI: T1 - Timer1    Priority: 2
+    IPC6bits.T4IP = 1;      // T4: T4 - Timer4    Priority: 2
 }
 
 void InitU1(void){
