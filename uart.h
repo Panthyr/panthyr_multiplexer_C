@@ -1,7 +1,7 @@
 /*
  * File:   uart.h for PIC24FJ128GB204
  * Author: dieterv
- * v0.2
+ * v0.3
  */
 
 
@@ -13,7 +13,7 @@
 #include <xc.h> // include processor files - each processor file is guarded.  
 
 /* METHODS */
-void Uart_SendString( unsigned int port, const char * buffer );
+uint16_t Uart_SendString( unsigned int port, const char * buffer );
 void Uart_SendStringNL( unsigned int port, const char * buffer );
 void Uart_SendRaw( unsigned int port, const char * buffer, unsigned int length );
 void Uart_SendChar( unsigned int port, const char ch);
