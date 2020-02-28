@@ -5,8 +5,8 @@
 
 void initHardware( void ){
     
-    initPPS();
     initOscillator();
+    initPPS();
     initInterrupts();
     I2C1_Init();
     InitU1();
@@ -167,7 +167,7 @@ void InitU2(void){
    U2MODEbits.UARTEN = 1;  // enabling UART ON bit
    U2STAbits.UTXEN = 1;
    if (RCONbits.WDTO){
-       Uart_SendString(2, "---Reset by WDT---\r");
+       Uart_SendString(2, "---Reset by WDT---\n");
    }
 //   SendString(2, "---Init UART2 (IRR) completed---\r");  // sending a string to the sensor while it is booting can cause the instrument to lock up...
 }
@@ -194,9 +194,9 @@ void InitU3(void){
    U3MODEbits.UARTEN = 1;  // enabling UART ON bit
    U3STAbits.UTXEN = 1;
     if (RCONbits.WDTO){
-       Uart_SendString(3, "---Reset by WDT---\r");
+       Uart_SendString(3, "---Reset by WDT---\n");
    }
-   Uart_SendString(3, "---Init UART3 (MUX) completed---\r");
+   Uart_SendString(3, "---Init UART3 (MUX) completed---\n");
 }
 
 void InitU4(void){
@@ -209,21 +209,21 @@ void InitU4(void){
    U4MODE = 0x0008;  // disabling UARTEN bit   
    // UTXISEL0 TX_ONE_CHAR; UTXINV disabled; OERR NO_ERROR_cleared; URXISEL RX_ONE_CHAR; UTXBRK COMPLETED; UTXEN disabled; ADDEN disabled; 
    U4STA = 0x0000;
-   // BaudRate = 9600; Frequency = 6000000 Hz; U1BRG 77; 
-   U4BRG = 0x9B;
+   // BaudRate = 57600; Frequency = 6000000 Hz;
+   U4BRG = 0x19;
    // ADMADDR 0; ADMMASK 0; 
    U4ADMD = 0x0000;
 
-   // Enable interrupt for UART2Rx
+   // Enable interrupt for UART4Rx
    IEC5bits.U4RXIE = 1;
 
     //Make sure to set LAT bit corresponding to TxPin as high before UART initialization
    U4MODEbits.UARTEN = 1;  // enabling UART ON bit
    U4STAbits.UTXEN = 1;
     if (RCONbits.WDTO){
-       Uart_SendString(4, "---Reset by WDT---\r");
+       Uart_SendString(4, "---Reset by WDT---\n");
    }
-   Uart_SendString(4, "---Init UART4 (AUX) completed---\r");
+   Uart_SendString(4, "---Init UART4 (AUX) completed---\n");
 }
 
 void initTimer1( void ){
