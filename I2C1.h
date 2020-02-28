@@ -13,7 +13,6 @@
 //#include <libpic30.h>
 
 //--------------------Variables--------------------
-extern unsigned char I2C1_State;
 
 //-------------------Macros-------------------
 /* I2C Pin macros */

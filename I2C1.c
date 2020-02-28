@@ -41,7 +41,6 @@ int8_t I2C1_InitModule (void)
 {
     I2C1CONLbits.I2CEN = 0;     // Disables module
     __delay_us(10);
-    I2C1_ResetBusPins();            // Toggle clock line to reset any hanging devices
     
     /* Set pins digital, input, open drain */
     I2C1_SDA_SetDigital();
@@ -51,6 +50,7 @@ int8_t I2C1_InitModule (void)
     I2C1_SCL_SetOpenDrain();
     __delay_us(10);
     
+    I2C1_ResetBusPins();            // Toggle clock line to reset any hanging devices
     /* I2C baud rate */
     I2C1BRG = 0x1B;             // FRC = 8MHz, FRCDIV = 4, PLL pre = 6, Fscl = 0.1MHz
     
@@ -75,7 +75,6 @@ int8_t I2C1_ResetBusPins(void)
 {
     uint8_t cycleCLK = 10;
     I2C1CONLbits.I2CEN = 0;     // Disables module, frees pins for manual use
-    
     I2C1_SCL_SetDigOut();
     I2C1_SDA_SetDigOut();
     // Try to get both lines high
@@ -88,6 +87,7 @@ int8_t I2C1_ResetBusPins(void)
         return I2C1_Err_SCL_Low;
     }
     
+//    I2C1_SDA_SetDigIn();
     // Try to get SDA high, if required by toggling SCL
     while (cycleCLK > 0){
         if (I2C1_SDA_State == 1){
