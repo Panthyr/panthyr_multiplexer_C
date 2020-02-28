@@ -1,7 +1,10 @@
 /*
  * Hypermaq/Panthyr serial port multiplex
- * SW version v0.2
- * For HW TOP v0.2, Bottom v0.1
+ * SW version v0.3
+ * For HW TOP v0.2, Bottom v0.2
+ * v0.1 of mux board has only 3 serial ports. The serial port that is labeled "mux"
+ * is connected to the pins that connect to uart4 on newer hardware...
+ * v0.3
  */
 // CONFIG1
 #pragma config WDTPS = PS512    // Watchdog Timer Postscaler Select->1:512
@@ -45,52 +48,60 @@
 #pragma config I2C1SEL = DISABLE    // Alternate I2C1 enable bit->I2C1 uses SCL1 and SDA1 pins
 #pragma config IOL1WAY = ON    // PPS IOLOCK Set Only Once Enable bit->Once set, the IOLOCK bit cannot be cleared
 
-
+/* <> vs "" for includes:
+   #include <x.h> --> first look among the compiler standard header files
+   #include "x.h" --> first look in the program directory
+ */
+#define FCY 6000000UL    // Instruction cycle frequency, Hz - required for __delayXXX() to work
 #include <xc.h>
 #include "main.h"
-#define FCY 6000000UL    // Instruction cycle frequency, Hz - required for __delayXXX() to work
-#include <libpic30.h>    // contains delay functions
-#include "I2C1.h"
-#include "Sensirion_SHT31.h"        // temp/RH sensor
-#include "stdint.h"                 // for typedefs
+//#include "stdint.h"                 // for typedefs
 #include "string.h"                 // for strcat
 #include <stdbool.h>
+#include <stdlib.h>                 // itoa
+#include <libpic30.h>    // contains delay functions
 #include "hardware.h"               // 
 #include "uart.h"
-#include <stdlib.h>                 // itoa
+#include "I2C1.h"
+#include "Sensirion_SHT31.h"        // temp/RH sensor
 
 // Variables
 
-/* Variables for the UARTS */
+/* Variables/constants for the UARTS */
 #define BUFFLENGTH 1024
-
+#define COMMANDMAXLENGTH 50
 struct CircBuf{
-    char Buff[BUFFLENGTH];
-    unsigned int WritePos;           // Write position
-    unsigned int ReadPos;            // Read position
-    unsigned int FillLength;      // Number of unprocessed chars in array
+    uint8_t Buff[BUFFLENGTH];
+    uint16_t WritePos;           // Write position
+    uint16_t ReadPos;            // Read position
+    uint16_t FillLength;      // Number of unprocessed chars in array
     bool DoMux;                   // Flag if there's buffered RX from Ux
 }RadBuf, IrrBuf = {{0,0,0,0,0}};
 
-char MuxCircBuf[BUFFLENGTH] = {0};   // Circular buffer for UART3
-unsigned int MuxWrite = 0;           // Write position
-unsigned int MuxMessStart = 0;            // Read position
-unsigned int MuxFillLength = 0;      // Number of unprocessed chars in array
-unsigned int MuxSourcePort = 0;     // Where did the message from?
-unsigned int MuxExpectedChr = 0;    // Counter for number of expected chars
-unsigned int MuxPreamble = 0;       // Counter for preamble
-unsigned char ToSendData[BUFFLENGTH] = {}; // Message that needs to be send out
-unsigned int ToSendPort = 1;         // Where this message should go
-unsigned int MuxReceived = 0;       // Number of received chars in message
+struct MuxRxBuff{
+    uint8_t CircBuf[BUFFLENGTH];   // Circular buffer for UART3
+    uint16_t WritePos;           // Write position
+    uint16_t MessStart;            // Read position
+//    unsigned int MuxFillLength = 0;      // Number of unprocessed chars in array
+    uint8_t SourcePort;     // Where should the message go to?
+    uint16_t ExpectedChr;    // Counter for number of expected chars
+    uint8_t Preamble;       // Counter for preamble
+}MuxRxBuff = {{0},0,0,0,0,0};
 
-char AuxRx[20] = {0};            // Buffer for the received commands on UART4
+struct DeMuxBuff{
+    uint8_t ToSendData[BUFFLENGTH]; // Message that needs to be send out
+    uint8_t ToSendPort;         // Where this message should go
+    uint16_t MuxMsgLength;       // Number of received chars in message
+}DeMuxBuff = {{0},1,0};
+
+char AuxRx[COMMANDMAXLENGTH] = {0}; // Buffer for the received commands on UART4
 uint8_t AuxRxPos = 0;               // Write position in the buffer
 
 /* FLAGS */
 volatile bool flagMuxDoDemux = 0;                // Flag if there's buffered RX from U3
-volatile uint8_t flagVitalsRequested = 0;        // 1 if requested from aux serial, 2 if through mux
-volatile bool flagWaitingForVitalsFromMux;       // to identify that we've requested data from "the other side"
-
+volatile uint8_t VitalsRequested = 0;        // 1 if requested from aux serial, 2 if through mux
+volatile uint8_t flagVersionRequested = 0;        // 
+volatile bool flagWaitingForRemoteVitals;       // to identify that we've requested data from "the other side"
 signed int SHT31_Temp = 0;
 unsigned char SHT31_RH = 0;
 
@@ -130,10 +141,6 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _U1RXInterrupt ( void ){
     }
 }
 
-void __attribute__ ( ( interrupt, no_auto_psv ) ) _U2TXInterrupt ( void ){ 
-    IFS1bits.U2TXIF = false;
-}
-
 void __attribute__ ( ( interrupt, no_auto_psv ) ) _U2RXInterrupt ( void ){ 
     // irradiance data
     IFS1bits.U2RXIF = false; // clear interrupt bit
@@ -147,90 +154,82 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _U2RXInterrupt ( void ){
     }
 }
 
-void __attribute__ ( ( interrupt, no_auto_psv ) ) _U3TXInterrupt ( void ){ 
-    IFS5bits.U3TXIF = false;
-}
-
 void __attribute__ ( ( interrupt, no_auto_psv ) ) _U3RXInterrupt ( void ){ 
     // muxed data
     IFS5bits.U3RXIF = false; // clear interrupt bit
     LED_Mux_Rx_Toggle();
     unsigned char x = U3RXREG;
-    switch(MuxPreamble){
+    switch(MuxRxBuff.Preamble){
         case 0:                             // Waiting for start of muxed message
             if (x == '_'){                  // Correct start char
-                MuxMessStart = MuxWrite;    // "reserve" start position
-                MuxPreamble++;              // One char of preamble correct
+                MuxRxBuff.MessStart = MuxRxBuff.WritePos;    // "reserve" start position
+                MuxRxBuff.Preamble++;              // One char of preamble correct
             } 
             break;
         case 1:
             if (x == '('){
-                MuxPreamble++;
+                MuxRxBuff.Preamble++;
             } else {
-                MuxPreamble =0;         // Incorrect preamble, restart
+                MuxRxBuff.Preamble =0;         // Incorrect preamble, restart
             }
             break;
         case 2:
             if (x - 0x30 < 5){                     // Port number should be 1,2 or 4 (4 can be temp request)
-                MuxSourcePort = x - 0x30;
-                MuxPreamble++;
+                MuxRxBuff.SourcePort = x - 0x30;
+                MuxRxBuff.Preamble++;
             } else {
-                MuxPreamble = 0;
+                MuxRxBuff.Preamble = 0;
             }
             break;
         case 3:                             // _(x was already received
             if (x > 0){
-                MuxExpectedChr = x;
-                MuxPreamble++;
+                MuxRxBuff.ExpectedChr = x;
+                MuxRxBuff.Preamble++;
             } else { 
-                MuxPreamble = 0;
+                MuxRxBuff.Preamble = 0;
             }
             break;
         case 4:                             // _(x) has been received
             if (x == ')'){
-                MuxPreamble++;
+                MuxRxBuff.Preamble++;
             } else {
-                MuxPreamble =0;         // Incorrect preamble, restart
+                MuxRxBuff.Preamble =0;         // Incorrect preamble, restart
             }
             break;
         case 5:
             if (x == '_'){                  // _(x)_ has been received
-                MuxPreamble++;
+                MuxRxBuff.Preamble++;
                 break;
             } else {
-                MuxPreamble =0;         // Incorrect preamble, restart
+                MuxRxBuff.Preamble =0;         // Incorrect preamble, restart
             }
             break;
         case 6:
-            if (MuxExpectedChr > 0){           // Store data until all expected chars received
-                MuxCircBuf[MuxWrite] = x;
-                MuxExpectedChr--;
-                MuxReceived++;
-                MuxWrite++;
-                if (MuxWrite == BUFFLENGTH){
-                    MuxWrite = 0;
+            if (MuxRxBuff.ExpectedChr > 0){           // Store data until all expected chars received
+                MuxRxBuff.CircBuf[MuxRxBuff.WritePos] = x;
+                MuxRxBuff.ExpectedChr--;
+                DeMuxBuff.MuxMsgLength++;
+                MuxRxBuff.WritePos++;
+                if (MuxRxBuff.WritePos == BUFFLENGTH){
+                    MuxRxBuff.WritePos = 0;
                 }
                 break;
              } else if ( x == 13){
                 //send data out
                 flagMuxDoDemux = 1;
-                MuxPreamble = 0;
+                MuxRxBuff.Preamble = 0;
              } else {                           // No CR when expected, dump message
-                MuxPreamble =0;
+                MuxRxBuff.Preamble =0;
              }
     }
-}
-
-void __attribute__ ( ( interrupt, no_auto_psv ) ) _U4TXInterrupt ( void ){ 
-    IFS5bits.U4TXIF = false;
 }
 
 void __attribute__ ( ( interrupt, no_auto_psv ) ) _U4RXInterrupt ( void ){ 
     // this interrupt waits for a message start (either ? or !),
     // then buffers the command up to the * character
-    // buffer is 20 bytes, max command is 18 bytes (20 - start ? or ! - end *)
+    // buffer is COMMANDMAXLENGTH bytes, max command is COMMANDMAXLENGTH - 2 (COMMANDMAXLENGTH - start ? or ! - end *)
     // if a known command is received, it sets its flag for the main loop to handle
-    // if it gets more than 20 bytes, or an unknown command or a new * character,
+    // if it gets more than COMMANDMAXLENGTH bytes, an unknown command or a new ?/! character,
     // it clears the buffer and restarts
 
     // possible commands:
@@ -263,7 +262,11 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _U4RXInterrupt ( void ){
             
             /* check for correct commands*/
             if (strcmp( AuxRx, "?vitals*") == 0){
-                flagVitalsRequested = 1;
+                VitalsRequested = 1;
+            }
+            
+            if(strcmp (AuxRx, "?ver*") == 0){
+                flagVersionRequested = 1;
             }
             
             AuxRxPos = 0;       // either a valid command was passed and the appropriate flag set,
@@ -276,12 +279,11 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _U4RXInterrupt ( void ){
             break;
     }
     
-    if (AuxRxPos > 20){         // too many chars to be valid, restart rx operation
+    if (AuxRxPos > COMMANDMAXLENGTH){         // too many chars to be valid, restart rx operation
         AuxRxPos = 0;
         memset(AuxRx, 0, sizeof(AuxRx));;   // clear buffer
     }
 }
-
 
 void __attribute__ ( ( interrupt, no_auto_psv ) ) _T1Interrupt (  ){
 /* ISR for TIMER 1 
@@ -291,7 +293,6 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _T1Interrupt (  ){
  */
     IFS0bits.T1IF = false;  // clear interrupt flag
     TMR1 = 0x0000;
-    ClrWdt();               // kick wdt
     if(LedState){                   // Led is currently on
         LED_Heartbeat_SetLow();          // switch off
         PR1 = 0x3A8 - PWMValue;     // TMR1 set for off time (10ms - on time)
@@ -335,16 +336,65 @@ void __attribute__ ( ( interrupt, no_auto_psv ) ) _T4Interrupt (  ){
 */
     IFS1bits.T4IF = false; //clear interrupt flag
     TMR4 = 0x0000;
-//    TP32_Toggle();  // Toggle test point as test
     if(RadBuf.FillLength >0){
         RadBuf.DoMux = true;
     }
     if(IrrBuf.FillLength >0){
         IrrBuf.DoMux = true;
     }
-//    if(MuxReceived >0){
-//        MuxDoDemux = true;
-//    }
+}
+
+void muxRad(void){
+        /* Make working copies of the fill length and read position, 
+     They can change if new data comes in during transmit. */
+    unsigned int UxFillLengthCopy = 0;      // will hold length of message in buffer
+    unsigned int UxRead = 0;                // read position in mux
+    
+    UxFillLengthCopy = RadBuf.FillLength;
+    UxRead = RadBuf.ReadPos;
+    RadBuf.ReadPos = RadBuf.WritePos;
+    RadBuf.FillLength = 0;
+    Uart_SendString(3, "_(1");              // Send prefix
+    Uart_SendChar(3, UxFillLengthCopy);      // Send number of chars as one byte
+    Uart_SendString(3,")_");
+    while(UxFillLengthCopy > 0){
+        Uart_SendChar(3, RadBuf.Buff[UxRead]);
+        UxRead++;
+        if (UxRead == BUFFLENGTH){
+            UxRead = 0;
+        }
+        UxFillLengthCopy--;
+    }
+    Uart_SendChar(3, 13);            // Send CR
+}
+
+void muxIrr(void){
+    /* Make working copies of the fill length and read position, 
+    They can change if new data comes in during transmit. */
+    unsigned int UxFillLengthCopy = 0;      // will hold length of message in buffer
+    unsigned int UxRead = 0;                // read position in mux
+    
+    UxFillLengthCopy = IrrBuf.FillLength;
+    UxRead = IrrBuf.ReadPos;
+    IrrBuf.FillLength = 0;
+    IrrBuf.ReadPos = IrrBuf.WritePos;
+    Uart_SendString(3, "_(2");               // Send prefix
+    Uart_SendChar(3, UxFillLengthCopy);      // Send number of chars as one byte
+    Uart_SendString(3,")_");
+    while(UxFillLengthCopy > 0){
+        Uart_SendChar(3, IrrBuf.Buff[UxRead]);
+        UxRead++;
+        if (UxRead == BUFFLENGTH){
+            UxRead = 0;
+        }
+        UxFillLengthCopy--;
+    }
+    Uart_SendChar(3, 13);            // Send CR
+}
+
+void sendVersion(void){
+    Uart_SendString(4, "FW Version: ");
+    Uart_SendStringNL(4, FW_VERSION);       // end with newline
 }
 
 uint8_t getVitals(void){
@@ -354,28 +404,32 @@ uint8_t getVitals(void){
     // if requested locally, send request over mux and set flag to wait for it
     char PrintoutTemp[13] = {};
     char PrintoutHum[6] = {};
-    uint16_t i = 0;
+//    uint16_t i = 0;
     
-    if (flagVitalsRequested == 1){          // vitals requested from aux serial port (local)
-        // first line should ask other side for vitals
-        // requestRemote temp
+    if (VitalsRequested == 1){          // vitals requested from aux serial port (local)
+        // first task should be to ask other side for vitals
+        flagWaitingForRemoteVitals = 1;
     }
+
     // get the local values
     SHT31_SingleShot(&SHT31_Temp, &SHT31_RH, 3);
     // create message, regardless of where it should be sent to
-    formatData(PrintoutTemp, PrintoutHum);
+    formatVitals(PrintoutTemp, PrintoutHum);
     
-    if (flagVitalsRequested == 1){      // local request, wait for remote response
-        Uart_SendString(4, PrintoutTemp);
+    if (VitalsRequested == 1){      // local request, wait for remote response
+        Uart_SendStringNL(4, PrintoutTemp);
+    }
+    if (VitalsRequested == 2){
+        // send data to mux
     }
     return 1;
 }
 
-void formatData(char PrintoutTemp[], char PrintoutHum[]){
+void formatVitals(char PrintoutTemp[], char PrintoutHum[]){
     if (ImBottom){
         strcpy(PrintoutTemp, "tb");        
         strcpy(PrintoutHum, ",hb");
-    }else{
+    }else{                              // I'm top!
         strcpy(PrintoutTemp, "tt");        
         strcpy(PrintoutHum, ",ht");
     }
@@ -384,89 +438,92 @@ void formatData(char PrintoutTemp[], char PrintoutHum[]){
     strcat(PrintoutTemp, PrintoutHum);
 }
 
+void outputMuxedMsg(uint8_t TargetPort, uint16_t MsgLength, uint16_t MsgStartPos){
+    while (MsgLength-- > 0){
+        Uart_SendChar(TargetPort, MuxRxBuff.CircBuf[MsgStartPos++]);
+        if (MsgStartPos == BUFFLENGTH){
+            MsgStartPos = 0;
+        }
+    }
+}
+
+
+void processMuxedMSG(uint16_t MsgLength, uint16_t MsgStartPos){
+    char ProcCommand[COMMANDMAXLENGTH] = {0};
+    uint8_t ProcCommandPos = 0;
+    while (MsgLength-- > 0){
+        ProcCommand[ProcCommandPos++] = MuxRxBuff.CircBuf[MsgStartPos++];
+        if (MsgStartPos == BUFFLENGTH){
+                MsgStartPos = 0;
+        }
+    }
+    
+    if ((ProcCommand[0] == 'r')&&(ProcCommand[sizeof(ProcCommand)-1] == '*')){
+        // this is a reply
+        if(flagWaitingForRemoteVitals){
+            
+        }
+    }
+    
+    if(strcmp (ProcCommand, "?vitals*") == 0){
+        VitalsRequested = 2;
+    }
+}
+
 int main(void) {
     
-    /*Initialize*/
-    initHardware();         // Init all the hardware components and setup pins
-    LED_Boot_SetHigh();     // After startup, light red led for 1 second (100 PWM cycles)
-
-    StartWDT();
-      /*Init completed*/
+    uint16_t DeMuxStart = 0;
+    uint16_t MuxMsgLength = 0;
     
-    unsigned int UxFillLengthCopy = 0;      // will hold length of message in buffer
-    unsigned int UxRead = 0;                // read position in mux
-    unsigned int DeMuxStart = 0;
-    unsigned int DeMuxTodo = 0;
-
+    /*Initialize*/
+    LED_Boot_SetHigh();     // After startup, light red led for 1 second (100 PWM cycles)
+    initHardware();         // Init all the hardware components and setup pins
+    StartWDT();
+        
+    
     /*Main loop*/
     while(1){
+        ClrWdt();               // kick wdt
+
         // check if request have been received over mux or aux serial
-        if (flagVitalsRequested > 0){
+        if (VitalsRequested > 0){
             getVitals();
-            flagVitalsRequested = 0;
+            VitalsRequested = 0;
+        }
+        // check if version information has been requested
+        if (flagVersionRequested){
+            sendVersion();
+            flagVersionRequested = 0;
         }
         
-        if(RadBuf.DoMux){
-            /* Make working copies of the fill length and read position, 
-             They can change if new data comes in during transmit. */
-            UxFillLengthCopy = RadBuf.FillLength;
-            UxRead = RadBuf.ReadPos;
-            RadBuf.ReadPos = RadBuf.WritePos;
-            RadBuf.FillLength = 0;
-            Uart_SendString(3, "_(1");              // Send prefix
-            Uart_SendChar(3, UxFillLengthCopy);      // Send number of chars as one byte
-            Uart_SendString(3,")_");
-            while(UxFillLengthCopy > 0){
-                Uart_SendChar(3, RadBuf.Buff[UxRead]);
-                UxRead++;
-                if (UxRead == BUFFLENGTH){
-                    UxRead = 0;
-                }
-                UxFillLengthCopy--;
-            }
-            Uart_SendChar(3, 13);            // Send CR
+        if(RadBuf.DoMux){             // Send data from Radiance over mux
+            muxRad();
             RadBuf.DoMux = false;    // The flag might be a new one but we don't care
         }
         
-        if(IrrBuf.DoMux){
-            /* Make working copies of the fill length and read position, 
-             They can change if new data comes in during transmit. */
-            UxFillLengthCopy = IrrBuf.FillLength;
-            UxRead = IrrBuf.ReadPos;
-            IrrBuf.FillLength = 0;
-            IrrBuf.ReadPos = IrrBuf.WritePos;
-            Uart_SendString(3, "_(2");              // Send prefix
-            Uart_SendChar(3, UxFillLengthCopy);      // Send number of chars as one byte
-            Uart_SendString(3,")_");
-            while(UxFillLengthCopy > 0){
-                Uart_SendChar(3, IrrBuf.Buff[UxRead]);
-                UxRead++;
-                if (UxRead == BUFFLENGTH){
-                    UxRead = 0;
-                }
-                UxFillLengthCopy--;
-            }
-            Uart_SendChar(3, 13);            // Send CR
+        if(IrrBuf.DoMux){               // Send data from Irr over mux
+            muxIrr();
             IrrBuf.DoMux = false;           // The flag might be a new one but we don't care
         }
         
-        if(flagMuxDoDemux){
-            IPC20bits.U3RXIP = 0;  //    Disable UART3 RX interrupt
-            flagMuxDoDemux = 0;             // must be before the loop to avoid race condition
+        if(flagMuxDoDemux){                 // a message has come in
+            uint8_t CurrentPacketTargetPort;
+            IPC20bits.U3RXIP = 0;           // disable UART3 RX interrupt
+            flagMuxDoDemux = 0;             // must be before the loop to avoid race condition:
             /* If a complete new frame comes in during the while loop below,
              * and then MuxDoDemux gets set to 0 at the end,
                if no new tmr4 interrupt gets called, that buffer part never gets written out */
-            DeMuxTodo = MuxReceived;
-            MuxReceived = 0;
-            DeMuxStart = MuxMessStart;
-            IPC20bits.U3RXIP = 1;  //    Re-enable UART3 RX interrupt
-            while (DeMuxTodo > 0){
-                Uart_SendChar(MuxSourcePort, MuxCircBuf[DeMuxStart]);
-                DeMuxStart++;
-                if (DeMuxStart == BUFFLENGTH){
-                    DeMuxStart = 0;
-                }
-                DeMuxTodo--;
+            MuxMsgLength = DeMuxBuff.MuxMsgLength;
+            DeMuxBuff.MuxMsgLength = 0;
+            DeMuxStart = MuxRxBuff.MessStart;
+            CurrentPacketTargetPort = MuxRxBuff.SourcePort;
+            IPC20bits.U3RXIP = 1;           //    Re-enable UART3 RX interrupt
+            
+            // now handle the package
+            if (CurrentPacketTargetPort == 0){
+                processMuxedMSG(MuxMsgLength, DeMuxStart);
+            }else{
+                
             }
         }
         __delay_ms(1000);
