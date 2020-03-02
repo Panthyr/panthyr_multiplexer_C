@@ -241,7 +241,7 @@ void initTimer1( void ){
 
 void initTimer4(void){
     // TMR4 disabled, TSIDL Stop in idle, TECS SOSC, TGATE disable, TCKPS /64, T32 16 bit, TCS Fosc
-    T4CON = 0x2020; // period 
+    T4CON = 0x2020;
     //Set to zero
     TMR4 = 0x0000;
     // period of 200ms
