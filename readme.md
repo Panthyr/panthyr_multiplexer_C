@@ -40,7 +40,6 @@ No CR/LF is required (and is ignored if sent).
 The two microcontrollers can communicate with each other. To do so, they send a message that is embedded in the usual form _(0y) over the multiplex (UART3) port at 57600 baud.
  
 # FW 
-======
 
 ## High level overview
 The main loop first sets up the hardware (oscillator, pps, interrupts, UART and timers). It then goes into a loop that first kicks the watchdog timer, then checks for flags which are set in the interrupts and responds as appropriate.
@@ -48,7 +47,7 @@ The main loop first sets up the hardware (oscillator, pps, interrupts, UART and 
 *	Started just before the main loop
 *	Pre- (FWPSA , config word 1 bit 4) and postscaler(WDTPS, cw1 bit 3-0) are both set to 128, resulting in about 512ms timeout
 *	After HW initialization, RCONbits.WDTO is checked. If set, all UARTS send out “---Reset by WDT---\n”
-*	
+
 ## Timer 1
 
 ## Timer 4
