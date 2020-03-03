@@ -30,7 +30,7 @@
 
 # Communication with/between the microcontrollers
 
-##2.1.	Message formats
+## Message formats
 Requests/commands have the following format:
 ?xxxxxxx* for requests
 !xxxxxxx* for commands
@@ -42,13 +42,13 @@ The two microcontrollers can communicate with each other. To do so, they send a 
 # FW 
 ======
 
-##3.1.	High level overview
+## High level overview
 The main loop first sets up the hardware (oscillator, pps, interrupts, UART and timers). It then goes into a loop that first kicks the watchdog timer, then checks for flags which are set in the interrupts and responds as appropriate.
-##3.2.	WDT
+##	WDT
 *	Started just before the main loop
 *	Pre- (FWPSA , config word 1 bit 4) and postscaler(WDTPS, cw1 bit 3-0) are both set to 128, resulting in about 512ms timeout
 *	After HW initialization, RCONbits.WDTO is checked. If set, all UARTS send out “---Reset by WDT---\n”
 *	
-##Timer 1
+## Timer 1
 
-##Timer 4
+## Timer 4
