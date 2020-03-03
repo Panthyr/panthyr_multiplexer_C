@@ -1,4 +1,30 @@
-# 1. Ports
+# 1. FW
+
+## High level overview
+
+The main loop first sets up the hardware (oscillator, pps, interrupts, UART and timers). It then goes into a loop that first kicks the watchdog timer, then checks for flags which are set in the interrupts and responds as appropriate.
+Most work is done in the UART RX interrupt `_UxRXInterrupt` functions, as they wait for incoming data and set up the flags to notify the main loop.
+
+## WDT
+
+* Started just before the main loop
+* Pre- (`FWPSA` , config word 1 bit 4) and postscaler (`WDTPS`, cw1 bit 3-0) are both set to 128, resulting in about 512ms timeout
+* After HW initialization, RCONbits.WDTO is checked. If set, all UARTS send out “---Reset by WDT---\n”
+
+## Timer 1
+
+* `T1CON = 0x020` and `PR1 = 0x3A8`: about 10ms (0.06% error)
+* Used solely for heartbeat **LED_Heartbeat** (orange) and boot led **LED_Boot** (red)
+* **LED_Boot** is lit after boot and remains on for 100PWM cycles (~1s). Lit again in case of errors.
+* **LED_Heartbeat** is software PWM driven. Might be migrated to HW driven solution.
+
+## Timer 4
+
+* `T4CON = 0x2020` and `PR4 = 0x493E`: about 50ms
+* Checks if there is data in RadBuf or IrrBuf and set flag for main loop to mux this data
+* While these flags could also be set in the respective `_UxRXInterrupt` handlers, using the timer has the benefit of "packaging" the buffers in 50ms bursts instead of each time the main loop has run. More characters per muxed message lowers the overhead imposed by the preamble. Higher `PR4` values further lower the overhead (since this results in larger packets), but adds additional delay in the signal chain.
+
+# 2. Ports
 
 ## UART1
 
@@ -36,14 +62,14 @@
 * Prints “---Init UART4 (AUX) completed---\n" after initialization
 * TODO: add top/bottom in init message
 
-# 2. Handling received muxed packets
+# 3. Handling received muxed packets
 
 When the main loop sees `FlagMuxDoDemux` set it checks the target port:
 
 * Packets for UART1 (radiance) or UART2 are then transmitted out of the respective port.
 * Packets for port 0 are to be handled by the controller internally. These are handled by `processMuxedCmd`. See "Handling of incoming commands (from MUX/UART3)"
 
-# 3. Communication with/between the microcontrollers
+# 4. Communication with/between the microcontrollers
 
 ## Message formats
 
@@ -88,28 +114,4 @@ If the command requires communication with the remote controller, the message is
 * If the message is a response (starts with "r"), it checks to see if there are any "waiting for reply"flags set. If one is set, it handles the message (output on UART4/AUX in case of `?vitals*`) and clears the flag.
 * A request for vitals (`?vitals*`) sets `FlagVitalsRequested = 2`. Value 2 of this variable tells the handling function that the information is request by the remote and should be sent over the mux.
 
-# 4. FW
 
-## High level overview
-
-The main loop first sets up the hardware (oscillator, pps, interrupts, UART and timers). It then goes into a loop that first kicks the watchdog timer, then checks for flags which are set in the interrupts and responds as appropriate.
-Most work is done in the UART RX interrupt `_UxRXInterrupt` functions, as they wait for incoming data and set up the flags to notify the main loop.
-
-## WDT
-
-* Started just before the main loop
-* Pre- (`FWPSA` , config word 1 bit 4) and postscaler (`WDTPS`, cw1 bit 3-0) are both set to 128, resulting in about 512ms timeout
-* After HW initialization, RCONbits.WDTO is checked. If set, all UARTS send out “---Reset by WDT---\n”
-
-## Timer 1
-
-* `T1CON = 0x020` and `PR1 = 0x3A8`: about 10ms (0.06% error)
-* Used solely for heartbeat **LED_Heartbeat** (orange) and boot led **LED_Boot** (red)
-* **LED_Boot** is lit after boot and remains on for 100PWM cycles (~1s). Lit again in case of errors.
-* **LED_Heartbeat** is software PWM driven. Might be migrated to HW driven solution.
-
-## Timer 4
-
-* `T4CON = 0x2020` and `PR4 = 0x493E`: about 50ms
-* Checks if there is data in RadBuf or IrrBuf and set flag for main loop to mux this data
-* While these flags could also be set in the respective `_UxRXInterrupt` handlers, using the timer has the benefit of "packaging" the buffers in 50ms bursts instead of each time the main loop has run. More characters per muxed message lowers the overhead imposed by the preamble. Higher `PR4` values further lower the overhead (since this results in larger packets), but adds additional delay in the signal chain.
