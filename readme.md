@@ -67,6 +67,27 @@ Commands do not have to end in \n or \r.
 
 * TODO: remote FW version?
 
+## Handling of incoming commands (from AUX/UART4)
+
+`_U4RXInterrupt` works as a small state machine:
+
+1. Waiting for an exclamation mark (0x21) or question mark (0x3F) as a message start identifier.
+2. It then regards the following characters as part of the incoming command and stores them in `AuxRx` and waits for asterisk (0x2A) to close the command.
+3. If the length of the command exeeds `COMMANDMAXLENGTH` (50 bytes in v0.4), the buffer is emptied and goes back to step one.
+4. After rx of * (0x2A), the message buffer `AuxRx` is compared to know commands and the corresponding flag is set. If the command is unknown, the machine goes back to step 1.
+
+At this point, the `main()` loop takes over and handles the request and unsets the flag afterwards.
+
+If the command requires communication with the remote controller, the message is send over the mux with destination port 0 and handled there (see next point).
+
+## Handling of incoming commands (from MUX/UART3)
+
+`processMuxedCmd` handles incoming commands:
+
+* It checks the validity of the message format.
+* If the message is a response (starts with "r"), it checks to see if there are any "waiting for reply"flags set. If one is set, it handles the message (output on UART4/AUX in case of `?vitals*`) and clears the flag.
+* A request for vitals (`?vitals*`) sets `FlagVitalsRequested = 2`. Value 2 of this variable tells the handling function that the information is request by the remote and should be sent over the mux.
+
 # 4. FW
 
 ## High level overview
@@ -92,24 +113,3 @@ Most work is done in the UART RX interrupt `_UxRXInterrupt` functions, as they w
 * `T4CON = 0x2020` and `PR4 = 0x493E`: about 50ms
 * Checks if there is data in RadBuf or IrrBuf and set flag for main loop to mux this data
 * While these flags could also be set in the respective `_UxRXInterrupt` handlers, using the timer has the benefit of "packaging" the buffers in 50ms bursts instead of each time the main loop has run. More characters per muxed message lowers the overhead imposed by the preamble. Higher `PR4` values further lower the overhead (since this results in larger packets), but adds additional delay in the signal chain.
-
-## Handling of incoming commands (from AUX/UART4)
-
-`_U4RXInterrupt` works as a small state machine:
-
-1. Waiting for an exclamation mark (0x21) or question mark (0x3F) as a message start identifier.
-2. It then regards the following characters as part of the incoming command and stores them in `AuxRx` and waits for asterisk (0x2A) to close the command.
-3. If the length of the command exeeds `COMMANDMAXLENGTH` (50 bytes in v0.4), the buffer is emptied and goes back to step one.
-4. After rx of * (0x2A), the message buffer `AuxRx` is compared to know commands and the corresponding flag is set. If the command is unknown, the machine goes back to step 1.
-
-At this point, the `main()` loop takes over and handles the request and unsets the flag afterwards.
-
-If the command requires communication with the remote controller, the message is send over the mux with destination port 0 and handled there (see next point).
-
-## Handling of incoming commands (from MUX/UART3)
-
-`processMuxedCmd` handles incoming commands:
-
-* It checks the validity of the message format.
-* If the message is a response (starts with "r"), it checks to see if there are any "waiting for reply"flags set. If one is set, it handles the message (output on UART4/AUX in case of `?vitals*`) and clears the flag.
-* A request for vitals (`?vitals*`) sets `FlagVitalsRequested = 2`. Value 2 of this variable tells the handling function that the information is request by the remote and should be sent over the mux.
