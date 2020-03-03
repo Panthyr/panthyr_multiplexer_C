@@ -466,7 +466,7 @@ void outputMuxedMsg(uint8_t TargetPort, uint16_t MsgLength, uint16_t MsgStartPos
     }
 }
 
-void processMuxedMsg(uint16_t MsgLength, uint16_t MsgStartPos)
+void processMuxedCmd(uint16_t MsgLength, uint16_t MsgStartPos)
 {
     // handles messages that target this board
     char ProcCommand[COMMANDMAXLENGTH] = {0}; // create buffer
@@ -543,7 +543,7 @@ int main(void)
 
             // now handle the package
             if (DeMuxBuffDescr.TargetPort == 0) { // msg has to be handled by processor
-                processMuxedMsg(DeMuxBuffDescr.MsgLength, DeMuxBuffDescr.MsgStartPos);
+                processMuxedCmd(DeMuxBuffDescr.MsgLength, DeMuxBuffDescr.MsgStartPos);
             } else {
                 outputMuxedMsg(DeMuxBuffDescr.TargetPort, DeMuxBuffDescr.MsgLength, DeMuxBuffDescr.MsgStartPos);
             }

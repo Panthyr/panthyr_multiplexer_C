@@ -28,7 +28,7 @@ void sendVersion(void);
 uint8_t getVitals(void);
 void formatVitals(char PrintoutTemp[], char PrintoutHum[]);
 void outputMuxedMsg(uint8_t TargetPort, uint16_t MsgLength, uint16_t MsgStartPos);
-void processMuxedMsg(uint16_t MsgLength, uint16_t MsgStartPos);
+void processMuxedCmd(uint16_t MsgLength, uint16_t MsgStartPos);
 void muxSendCommand();
 
 
