@@ -1,46 +1,51 @@
-# 1. FW
+# Panthyr multiplexer board
 
-## High level overview
+Firmware for the [Microchip PIC24FJ128GB204](https://www.microchip.com/wwwproducts/en/PIC24FJ128GB204) microcontroller on the (de)multiplexer board.
+Compiled using the [Microchip XC16 compiler](https://www.microchip.com/mplab/compilers).
+
+## 1. Firmware
+
+### High level overview
 
 The main loop first sets up the hardware (oscillator, pps, interrupts, UART and timers). It then goes into a loop that first kicks the watchdog timer, then checks for flags which are set in the interrupts and responds as appropriate.
 Most work is done in the UART RX interrupt `_UxRXInterrupt` functions, as they wait for incoming data and set up the flags to notify the main loop.
 
-## WDT
+### WDT
 
 * Started just before the main loop
 * Pre- (`FWPSA` , config word 1 bit 4) and postscaler (`WDTPS`, cw1 bit 3-0) are both set to 128, resulting in about 512ms timeout
 * After HW initialization, RCONbits.WDTO is checked. If set, all UARTS send out “---Reset by WDT---\n”
 
-## Timer 1
+### Timer 1
 
 * `T1CON = 0x020` and `PR1 = 0x3A8`: about 10ms (0.06% error)
 * Used solely for heartbeat **LED_Heartbeat** (orange) and boot led **LED_Boot** (red)
 * **LED_Boot** is lit after boot and remains on for 100PWM cycles (~1s). Lit again in case of errors.
 * **LED_Heartbeat** is software PWM driven. Might be migrated to HW driven solution.
 
-## Timer 4
+### Timer 4
 
 * `T4CON = 0x2020` and `PR4 = 0x493E`: about 50ms
 * Checks if there is data in RadBuf or IrrBuf and set flag for main loop to mux this data
 * While these flags could also be set in the respective `_UxRXInterrupt` handlers, using the timer has the benefit of "packaging" the buffers in 50ms bursts instead of each time the main loop has run. More characters per muxed message lowers the overhead imposed by the preamble. Higher `PR4` values further lower the overhead (since this results in larger packets), but adds additional delay in the signal chain.
 
-# 2. Ports
+## 2. Ports
 
-## UART1
+### UART1
 
 * 9600 baud
 * Connected/transparently mutiplexed to the radiance sensor
 * Does not print anything after initialization as this can cause the instruments to malfunction
 * TODO: if bottom: print init message, add top/bottom
 
-## UART2
+### UART2
 
 * 9600 baud
 * Connected/transparently mutiplexed to the irradiance sensor
 * Does not print anything after initialization as this can cause the instruments to malfunction
 * TODO: if bottom: print init message, add top/bottom
 
-## UART3
+### UART3
 
 * 57600 baud
 * MUX port (connected to the other board)
@@ -55,23 +60,23 @@ Most work is done in the UART RX interrupt `_UxRXInterrupt` functions, as they w
 * Prints “---Init UART3 (MUX) completed---\n" after initialization
 * TODO: add top/bottom in init message
 
-## UART4
+### UART4
 
 * 57600 baud
 * communicate with the uC and request data from sensors
 * Prints “---Init UART4 (AUX) completed---\n" after initialization
 * TODO: add top/bottom in init message
 
-# 3. Handling received muxed packets
+## 3. Handling received muxed packets
 
 When the main loop sees `FlagMuxDoDemux` set it checks the target port:
 
 * Packets for UART1 (radiance) or UART2 are then transmitted out of the respective port.
 * Packets for port 0 are to be handled by the controller internally. These are handled by `processMuxedCmd`. See "Handling of incoming commands (from MUX/UART3)"
 
-# 4. Communication with/between the microcontrollers
+## 4. Communication with/between the microcontrollers
 
-## Message formats
+### Message formats
 
 Requests/commands have the following format:
 
@@ -82,7 +87,7 @@ No CR/LF is required (and is ignored if sent).
 
 The two microcontrollers can communicate with each other. To do so, they send a message that is embedded in the usual form _(0y)_xxxx\CR over the multiplex (UART3) port at 57600 baud. Target port to be used is 0.
 
-## Currently supported commands
+### Currently supported commands
 
 Commands do not have to end in \n or \r.
 
@@ -93,7 +98,7 @@ Commands do not have to end in \n or \r.
 
 * TODO: remote FW version?
 
-## Handling of incoming commands (from AUX/UART4)
+### Handling of incoming commands (from AUX/UART4)
 
 `_U4RXInterrupt` works as a small state machine:
 
@@ -106,7 +111,7 @@ At this point, the `main()` loop takes over and handles the request and unsets t
 
 If the command requires communication with the remote controller, the message is send over the mux with destination port 0 and handled there (see next point).
 
-## Handling of incoming commands (from MUX/UART3)
+### Handling of incoming commands (from MUX/UART3)
 
 `processMuxedCmd` handles incoming commands:
 
@@ -114,4 +119,7 @@ If the command requires communication with the remote controller, the message is
 * If the message is a response (starts with "r"), it checks to see if there are any "waiting for reply"flags set. If one is set, it handles the message (output on UART4/AUX in case of `?vitals*`) and clears the flag.
 * A request for vitals (`?vitals*`) sets `FlagVitalsRequested = 2`. Value 2 of this variable tells the handling function that the information is request by the remote and should be sent over the mux.
 
+### Handling of outgoing commands (over MUX/UART3 to remote)
 
+* A function that has to send a command to the remote, sets the `FlagTxCMDMux` flag and stores the command in the `CmdToMux` variable.
+* When the `main()` loop finds the `FlagTxCMDMux`set, it calls the `muxSendCommand` function to handle this.
