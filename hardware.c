@@ -15,7 +15,8 @@ void initHardware( void ){
     InitU4();
     initTimer1();
     initTimer4();
-
+    checkIfResetByWDT();
+    
     /* TP */    
     TP32_SetDigOut();
     TP35_SetDigOut();
@@ -127,10 +128,6 @@ void InitU1(void){
     //Make sure to set LAT bit corresponding to TxPin as high before UART initialization
    U1MODEbits.UARTEN = 1;  // enabling UART ON bit
    U1STAbits.UTXEN = 1;
-   if (RCONbits.WDTO){
-       Uart_SendString(1, "---Reset by WDT---\r");
-   }
-//   SendString(1, "---Init UART1 (RAD) completed---\r");  // sending a string to the sensor while it is booting can cause the instrument to lock up...
 }
 
 void InitU2(void){
@@ -166,10 +163,6 @@ void InitU2(void){
     //Make sure to set LAT bit corresponding to TxPin as high before UART initialization
    U2MODEbits.UARTEN = 1;  // enabling UART ON bit
    U2STAbits.UTXEN = 1;
-   if (RCONbits.WDTO){
-       Uart_SendString(2, "---Reset by WDT---\n");
-   }
-//   SendString(2, "---Init UART2 (IRR) completed---\r");  // sending a string to the sensor while it is booting can cause the instrument to lock up...
 }
 
 void InitU3(void){
@@ -193,9 +186,7 @@ void InitU3(void){
     //Make sure to set LAT bit corresponding to TxPin as high before UART initialization
    U3MODEbits.UARTEN = 1;  // enabling UART ON bit
    U3STAbits.UTXEN = 1;
-    if (RCONbits.WDTO){
-       Uart_SendString(3, "---Reset by WDT---\n");
-   }
+
    Uart_SendString(3, "---Init UART3 (MUX) completed---\n");
 }
 
@@ -220,10 +211,16 @@ void InitU4(void){
     //Make sure to set LAT bit corresponding to TxPin as high before UART initialization
    U4MODEbits.UARTEN = 1;  // enabling UART ON bit
    U4STAbits.UTXEN = 1;
+   Uart_SendString(4, "---Init UART4 (AUX) completed---\n");
+}
+
+void checkIfResetByWDT( void ){
     if (RCONbits.WDTO){
+       Uart_SendString(1, "---Reset by WDT---\n");
+       Uart_SendString(2, "---Reset by WDT---\n");
+       Uart_SendString(3, "---Reset by WDT---\n");
        Uart_SendString(4, "---Reset by WDT---\n");
    }
-   Uart_SendString(4, "---Init UART4 (AUX) completed---\n");
 }
 
 void initTimer1( void ){

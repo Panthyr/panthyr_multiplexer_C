@@ -39,6 +39,7 @@ void InitU3(void);
 void InitU4(void);
 void initTimer1( void );
 void initTimer4( void );
+void checkIfResetByWDT( void );
 
 /***********/
 /* DEFINES */
