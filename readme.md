@@ -1,4 +1,4 @@
-# 1.Ports
+# 1. Ports
 
 ## UART1
 *	9600 baud
@@ -28,7 +28,7 @@
 *	Prints “---Init UART4 (AUX) completed---\n" after initialization
 *	TODO: add top/bottom in init message
 
-# 1.Communication with/between the microcontrollers
+# 1. Communication with/between the microcontrollers
 
 ## Message formats
 Requests/commands have the following format:
@@ -39,7 +39,7 @@ No CR/LF is required (and is ignored if sent).
 
 The two microcontrollers can communicate with each other. To do so, they send a message that is embedded in the usual form _(0y) over the multiplex (UART3) port at 57600 baud.
  
-# 1.FW 
+# 1. FW 
 
 ## High level overview
 The main loop first sets up the hardware (oscillator, pps, interrupts, UART and timers). It then goes into a loop that first kicks the watchdog timer, then checks for flags which are set in the interrupts and responds as appropriate.
