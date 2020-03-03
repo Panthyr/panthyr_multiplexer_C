@@ -1,5 +1,5 @@
 #1.	Ports
-=========
+
 ## 1.1.	UART1
 •	9600 baud
 •	Connected/transparently mutiplexed to the radiance sensor
@@ -29,6 +29,7 @@
 •	TODO: add top/bottom in init message
 #2.	Communication with/between the microcontrollers
 ===================================================
+
 ##2.1.	Message formats
 Requests/commands have the following format:
 ?xxxxxxx* for requests
@@ -40,6 +41,7 @@ The two microcontrollers can communicate with each other. To do so, they send a 
  
 #3.	FW 
 ======
+
 ##3.1.	High level overview
 The main loop first sets up the hardware (oscillator, pps, interrupts, UART and timers). It then goes into a loop that first kicks the watchdog timer, then checks for flags which are set in the interrupts and responds as appropriate.
 ##3.2.	WDT
