@@ -17,7 +17,8 @@
 *	X is the target port: 0 for the remote cpu, 1 for radiance, 2 for irradiance, 4 for the aux port (no use yet)
 *	Y is the number of bytes in the payload z
 *	Message ends with a CR (CR is only used to end muxed messages)
-*	Each packet (without the preamble _(xy)_) is checked for expected length when the CR is received. If length does not match, the packet is discarded.
+*	Each packet (without the preamble \_(xy)_) is checked for expected length when the CR is received. If length does not match, the packet is discarded.
+* `FlagMuxDoDemux` is then set for the main loop to process the received data.
 *	TODO: implement CRC as more rugged check
 *	TODO: request re-send if failed CRC/byte count
 *	Prints “---Init UART3 (MUX) completed---\n" after initialization
@@ -28,26 +29,70 @@
 *	Prints “---Init UART4 (AUX) completed---\n" after initialization
 *	TODO: add top/bottom in init message
 
+# 2. Handling received muxed packets
+
+When the main loop sees `FlagMuxDoDemux` set it checks the target port:
+* Packets for UART1 (radiance) or UART2 are then transmitted out of the respective port.
+* Packets for port 0 are to be handled by the controller internally. These are handled by `processMuxedCmd`. See "Handling of incoming commands (from MUX/UART3)"
+
 # 2. Communication with/between the microcontrollers
 
 ## Message formats
 Requests/commands have the following format:
-?xxxxxxx* for requests
-!xxxxxxx* for commands
-rxxxxxxx* for replies to requests (or cmd ack)
+* ?xxxxxxx* for requests
+* !xxxxxxx* for commands
+* rxxxxxxx* for replies to requests (or cmd ack) -> only used over the muxed port, not UART4/AUX!
 No CR/LF is required (and is ignored if sent).
 
-The two microcontrollers can communicate with each other. To do so, they send a message that is embedded in the usual form _(0y) over the multiplex (UART3) port at 57600 baud.
+The two microcontrollers can communicate with each other. To do so, they send a message that is embedded in the usual form _(0y)_xxxx\CR over the multiplex (UART3) port at 57600 baud. Target port to be used is 0.
+
+## Currently supported commands
+
+Commands do not have to end in \n or \r.
+
+|Command   |Returns|Explanation|Flag|
+|:--------:|-------|-----------|----|
+|`?vitals*`|tt2320th58\n bt2234bh24\n|local and remote temp/RH: (position:t for top, b for bottom)(t for temp)(temperature*100)(position:t for top, b for bottom)(h for relative humidity)(relative humidity in %). Example means 23,20 deg and 58%RH for top, 22,34/24 for bottom.|`FlagVitalsRequested`|
+|`?version*`|FW Version: v0.4\n|Local firmware version|`FlagVersionRequested`|
+
+* TODO: remote FW version?
  
 # 3. FW 
 
 ## High level overview
 The main loop first sets up the hardware (oscillator, pps, interrupts, UART and timers). It then goes into a loop that first kicks the watchdog timer, then checks for flags which are set in the interrupts and responds as appropriate.
+Most work is done in the UART RX interrupt `_UxRXInterrupt` functions, as they wait for incoming data and set up the flags to notify the main loop.
+
 ##	WDT
-*	Started just before the main loop
-*	Pre- (FWPSA , config word 1 bit 4) and postscaler(WDTPS, cw1 bit 3-0) are both set to 128, resulting in about 512ms timeout
-*	After HW initialization, RCONbits.WDTO is checked. If set, all UARTS send out “---Reset by WDT---\n”
+* Started just before the main loop
+* Pre- (`FWPSA` , config word 1 bit 4) and postscaler (`WDTPS`, cw1 bit 3-0) are both set to 128, resulting in about 512ms timeout
+* After HW initialization, RCONbits.WDTO is checked. If set, all UARTS send out “---Reset by WDT---\n”
 
 ## Timer 1
+* `T1CON = 0x020` and `PR1 = 0x3A8`: about 10ms (0.06% error)
+* Used solely for heartbeat **LED_Heartbeat** (orange) and boot led **LED_Boot** (red)
+* **LED_Boot** is lit after boot and remains on for 100PWM cycles (~1s). Lit again in case of errors.
+* **LED_Heartbeat** is software PWM driven. Might be migrated to HW driven solution.
 
 ## Timer 4
+* `T4CON = 0x2020` and `PR4 = 0x493E`: about 50ms 
+* Checks if there is data in RadBuf or IrrBuf and set flag for main loop to mux this data
+* While these flags could also be set in the respective `_UxRXInterrupt` handlers, using the timer has the benefit of "packaging" the buffers in 50ms bursts instead of each time the main loop has run. More characters per muxed message lowers the overhead imposed by the preamble. Higher `PR4` values further lower the overhead (since this results in larger packets), but adds additional delay in the signal chain.
+
+## Handling of incoming commands (from AUX/UART4)
+`_U4RXInterrupt` works as a small state machine:
+1. Waiting for an exclamation mark (0x21) or question mark (0x3F) as a message start identifier.
+2. It then regards the following characters as part of the incoming command and stores them in `AuxRx` and waits for asterisk (0x2A) to close the command.
+3. If the length of the command exeeds `COMMANDMAXLENGTH` (50 bytes in v0.4), the buffer is emptied and goes back to step one.
+4. After rx of * (0x2A), the message buffer `AuxRx` is compared to know commands and the corresponding flag is set. If the command is unknown, the machine goes back to step 1.
+
+At this point, the `main()` loop takes over and handles the request and unsets the flag afterwards.
+
+If the command requires communication with the remote controller, the message is send over the mux with destination port 0 and handled there (see next point).
+
+## Handling of incoming commands (from MUX/UART3)
+
+`processMuxedCmd` handles incoming commands:
+* It checks the validity of the message format. 
+* If the message is a response (starts with "r"), it checks to see if there are any "waiting for reply"flags set. If one is set, it handles the message (output on UART4/AUX in case of `?vitals*`) and clears the flag.
+* A request for vitals (`?vitals*`) sets `FlagVitalsRequested = 2`. Value 2 of this variable tells the handling function that the information is request by the remote and should be sent over the mux.
