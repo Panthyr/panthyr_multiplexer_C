@@ -1,8 +1,8 @@
 #1.	Ports
 
-## 1.1.	UART1
-•	9600 baud
-•	Connected/transparently mutiplexed to the radiance sensor
+## 1.1.	UART1\
+•	9600 baud\
+•	Connected/transparently mutiplexed to the radiance sensor\
 •	Does not print anything after initialization as this can cause the instruments to malfunction
 •	TODO: if bottom: print init message, add top/bottom
 ##1.2.	UART2
