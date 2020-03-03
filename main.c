@@ -21,7 +21,7 @@
 #include "main.h"
 #include "string.h"                 // for strcat
 #include <stdbool.h>
-#include <stdlib.h>                 // itoa
+#include <stdlib.h>                 // for itoa
 #include <libpic30.h>               // contains delay functions
 #include "hardware.h"               // 
 #include "uart.h"
@@ -159,7 +159,7 @@ void __attribute__((interrupt, no_auto_psv)) _U3RXInterrupt(void)
             MuxRxBuff.Preamble = 0;
         }
         break;
-    case 4: // _(x) has been received
+    case 4: // _(xy) has been received
         if (x == ')') {
             MuxRxBuff.Preamble++;
         } else {
@@ -167,7 +167,7 @@ void __attribute__((interrupt, no_auto_psv)) _U3RXInterrupt(void)
         }
         break;
     case 5:
-        if (x == '_') { // _(x)_ has been received
+        if (x == '_') { // _(xy)_ has been received
             MuxRxBuff.Preamble++;
             break;
         } else {
@@ -548,7 +548,6 @@ int main(void)
                 outputMuxedMsg(DeMuxBuffDescr.TargetPort, DeMuxBuffDescr.MsgLength, DeMuxBuffDescr.MsgStartPos);
             }
         }
-        __delay_ms(50);
     }
     return 0;
 }
