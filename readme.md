@@ -88,7 +88,7 @@ Commands do not have to end in \n or \r.
 
 |Command   |Returns|Explanation|Flag|
 |:--------:|-------|-----------|----|
-|`?vitals*`|tt2320th58\n bt2234bh24\n|local and remote temp/RH: (position:t for top, b for bottom)(t for temp)(temperature*100)(position:t for top, b for bottom)(h for relative humidity)(relative humidity in %). Example means 23,20 deg and 58%RH for top, 22,34/24 for bottom.|`FlagVitalsRequested`|
+|`?vitals*`|tt2320th58\n bt2234bh24\n|local and remote temp/RH: (position:t for top, b for bottom)(t for temp)(temperature\*100)(position:t for top, b for bottom)(h for relative humidity)(relative humidity in %). Example means 23,20 deg and 58%RH for top, 22,34/24 for bottom.|`FlagVitalsRequested`|
 |`?version*`|FW Version: v0.4\n|Local firmware version|`FlagVersionRequested`|
 
 * TODO: remote FW version?
