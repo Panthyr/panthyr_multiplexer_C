@@ -16,12 +16,12 @@
 const uint8_t SHT31_Address = 0x45;
 // constants with commands are in format:
 // {int number of bytes, byte1, byte2}
-const uint8_t CMD_SoftReset[3] = {2, 0x30, 0xA2};
-const uint8_t CMD_SSHighRep[3] = {2, 0x2C, 0x06};
-const uint8_t CMD_SSMidRep[3] = {2, 0x2C, 0x0D};
-const uint8_t CMD_SSLowRep[3] = {2, 0x2C, 0x10};
-const uint8_t CMD_HeaterOn[3] = {2, 0x30, 0x6D};
-const uint8_t CMD_HeaterOff[3] = {2, 0x30, 0x66};
+const uint8_t CMD_SoftReset[3] = {1, 0x30, 0xA2};
+const uint8_t CMD_SSHighRep[3] = {1, 0x2C, 0x06};
+const uint8_t CMD_SSMidRep[3] = {1, 0x2C, 0x0D};
+const uint8_t CMD_SSLowRep[3] = {1, 0x2C, 0x10};
+const uint8_t CMD_HeaterOn[3] = {1, 0x30, 0x6D};
+const uint8_t CMD_HeaterOff[3] = {1, 0x30, 0x66};
 
 
 
@@ -34,8 +34,8 @@ int8_t SHT31_InitReset(void){
     
     // send soft reset command, this resets all config and loads calibration
     if(I2C1_Write(  SHT31_Address,\
-                    0xFF,\
-                    (uint8_t *)&CMD_SoftReset[1],\
+                    CMD_SoftReset[1],\
+                    (uint8_t *)&CMD_SoftReset[2],\
                     CMD_SoftReset[0]\
                     ) <0){
         return -1;
@@ -81,8 +81,8 @@ int8_t SHT31_HeaterOnOff(uint8_t OnOff){
     switch(OnOff){
         case 0:                     // Switch OFF
             if (I2C1_Write(SHT31_Address,
-                    0xFF,
-                    &CMD_HeaterOff[1],
+                    CMD_HeaterOff[1],
+                    &CMD_HeaterOff[2],
                     CMD_HeaterOff[0])
                     < 0) {
                 return -1;
@@ -90,8 +90,8 @@ int8_t SHT31_HeaterOnOff(uint8_t OnOff){
             break;
         case 1:                     // Switch ON
             if (I2C1_Write(SHT31_Address,
-                            0xFF,
-                            &CMD_HeaterOn[1],
+                            CMD_HeaterOn[1],
+                            &CMD_HeaterOn[2],
                             CMD_HeaterOn[0])
                             < 0) {
                 return -1;        
@@ -123,9 +123,9 @@ int8_t SHT31_GetData(uint8_t MeasurementData[], uint8_t Repeatability){
        
     // address device and start measurement
     if(I2C1_Write(SHT31_Address,
-                0xFF,
-                pCommand+1,
-                *pCommand)
+                *pCommand+1, // value at second field (is register)
+                pCommand+2, // pointer + 2 is where payload starts
+                *pCommand) // value at pointer (number of bytes to send)
                 < 0){
         return -1;
     }
