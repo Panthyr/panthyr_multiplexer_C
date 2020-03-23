@@ -27,6 +27,7 @@
 #include "uart.h"
 #include "I2C1.h"
 #include "Sensirion_SHT31.h"        // temp/RH sensor
+#include "LSM9DS1.h"        // IMU
 
 // Variables
 
@@ -91,6 +92,16 @@ void __attribute__((interrupt, no_auto_psv)) _DefaultInterrupt(void)
     Uart_SendStringNL(2, "DefaultInterrupt");
     Uart_SendStringNL(3, "DefaultInterrupt");
     Uart_SendStringNL(4, "DefaultInterrupt");
+    while(1);  // hold here so we can read UART messages
+}
+
+void __attribute__((interrupt, no_auto_psv)) _MathError(void)
+{
+    Uart_SendStringNL(1, "_MATHERR");
+    Uart_SendStringNL(2, "_MATHERR");
+    Uart_SendStringNL(3, "_MATHERR");
+    Uart_SendStringNL(4, "_MATHERR");
+    while(1);  // hold here so we can read UART messages
 }
 
 void __attribute__((interrupt, no_auto_psv)) _U1RXInterrupt(void)
@@ -503,13 +514,32 @@ int main(void)
     /*Initialize*/
     LED_Boot_SetHigh(); // After startup, light red led for 1 second (100 PWM cycles)
     initHardware(); // Init all the hardware components and setup pins
-    StartWDT();
-
+//    StartWDT();
+    imu_config_t imuconfig;
+    imuconfig.calibrate = 1;
+    imuconfig.enable_accel = 1;
+    imuconfig.enable_gyro = 1;
+    imuconfig.enable_mag = 1;
+    imuconfig.low_power_mode = 0;
+    
+    float flt_test;
+    flt_test=(float)22/7;
+    
+    Uart_SendStringNL(4, "imuconfig.");
+    imu_t imu;
+    Uart_SendStringNL(4, "IMU and imuconfig.");
+    LSM9DS1_init(&imu, &imuconfig);
+    Uart_SendStringNL(4, "IMU init done.");
 
     /*Main loop*/
     while (1) {
         ClrWdt(); // kick wdt
-
+//        char temp[10] = {0};
+//        int16_t LSM_Temp = 0;
+//        LSM9_GetTemp(&LSM_Temp);
+//        itoa(temp, LSM_Temp, 10);
+//        Uart_SendStringNL(4, temp);
+        
         // check if request have been received over mux or aux serial
         if (FlagVitalsRequested > 0) {
             getVitals();
@@ -548,6 +578,7 @@ int main(void)
                 outputMuxedMsg(DeMuxBuffDescr.TargetPort, DeMuxBuffDescr.MsgLength, DeMuxBuffDescr.MsgStartPos);
             }
         }
+        __delay_ms(250);
     }
     return 0;
 }

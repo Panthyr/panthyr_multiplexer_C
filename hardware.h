@@ -74,7 +74,6 @@ void checkIfResetByWDT( void );
 #define U4_Rx_SetDig()              _ANSC4=0
 #define U4_Rx_SetDigIn()            _TRISC4=1
 
-
 /* TEST POINTS */
 #define TP19_SetHigh()          _LATA0 = 1
 #define TP19_SetLow()           _LATA0 = 0

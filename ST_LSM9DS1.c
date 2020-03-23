@@ -76,17 +76,21 @@ int8_t LSM9_InitReset (void)
 
 int8_t LSM9_GetTemp (int16_t * pTempRaw)
 {   
-    uint8_t TempHigh = 0, TempLow = 0;
+//    uint8_t TempHigh = 0, TempLow = 0;
+    uint8_t TempGet[2]; 
     int32_t Temp =0;
     
+//    if (I2C1_Read(LSM9_AG_Address, TEMP_H, &TempHigh, 1) < 1){
+//        return 0;
+//    }
+//    if (I2C1_Read(LSM9_AG_Address, TEMP_L, &TempLow, 1) < 1){
+//        return 0;
+//    }
+//    Temp = (((uint16_t)TempHigh << 8) | TempLow) &0xFFF;
     
-    if (I2C1_Read(LSM9_AG_Address, TEMP_H, &TempHigh, 1) < 1){
+    if (I2C1_Read(LSM9_AG_Address, TEMP_L, TempGet, 2) < 1){
         return 0;
     }
-    if (I2C1_Read(LSM9_AG_Address, TEMP_L, &TempLow, 1) < 1){
-        return 0;
-    }
-    Temp = (((uint16_t)TempHigh << 8) | TempLow) &0xFFF;
     if((Temp >> 11) == 0){  // positive number
         Temp = (Temp & 0x7FF); // keep bits [10:0]
     }else{
