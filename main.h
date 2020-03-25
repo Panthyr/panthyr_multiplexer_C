@@ -30,6 +30,8 @@ void formatVitals(char PrintoutTemp[], char PrintoutHum[]);
 void outputMuxedMsg(uint8_t TargetPort, uint16_t MsgLength, uint16_t MsgStartPos);
 void processMuxedCmd(uint16_t MsgLength, uint16_t MsgStartPos);
 void muxSendCommand();
+uint8_t printGyro(struct imu_t * imu);
+uint8_t printAcc(struct imu_t * imu);
 
 
 /* Specify an extension for GCC based compilers */

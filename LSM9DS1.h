@@ -74,6 +74,7 @@ typedef enum lsm9ds1_axis_e {
 	ALL_AXIS
 } lsm9ds1_axis_t;
 
+// LSM9DS1_init
 uint16_t LSM9DS1_init(imu_t *imu, const imu_config_t *config);
 
 

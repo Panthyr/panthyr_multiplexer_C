@@ -28,6 +28,9 @@
 #include "I2C1.h"
 #include "Sensirion_SHT31.h"        // temp/RH sensor
 #include "LSM9DS1.h"        // IMU
+#include "utils.h"
+#include "math.h"
+#define pi 3.14159265359
 
 // Variables
 
@@ -41,7 +44,9 @@ struct CircBuf { // incoming data buffers
     volatile uint16_t ReadPos; // Read position
     volatile uint16_t FillLength; // Number of unprocessed chars in array
     volatile bool DoMux; // Flag if there's buffered RX from Ux
-} RadBuf, IrrBuf = {{0, 0, 0, 0, 0}};
+} RadBuf, IrrBuf = {
+    {0, 0, 0, 0, 0}
+};
 
 struct MuxRxBuff {
     volatile uint8_t CircBuff[BUFFLENGTH]; // Circular buffer for UART3
@@ -51,7 +56,9 @@ struct MuxRxBuff {
     volatile uint8_t TargetPort; // Where should the message go to?
     volatile uint16_t ExpectedChr; // Counter for number of expected chars
     volatile uint8_t Preamble; // Counter for preamble
-} MuxRxBuff = {{0}, 0, 0, 0, 0, 0, 0};
+} MuxRxBuff = {
+    {0}, 0, 0, 0, 0, 0, 0
+};
 
 struct DemuxBuff { // describes the data to be demuxed in the MuxRxBuff
     volatile uint8_t TargetPort; // Where this message should go
@@ -86,25 +93,7 @@ bool CountUp = 1; // For the PWM of the heartbeat led
 uint16_t bootLed = 500; // Used to light orange led for 2.5s after boot (400 half PWM 0.01s cycles)
 // Decremented each half PWM duty cycle until zero
 
-void __attribute__((interrupt, no_auto_psv)) _DefaultInterrupt(void)
-{
-    Uart_SendStringNL(1, "DefaultInterrupt");
-    Uart_SendStringNL(2, "DefaultInterrupt");
-    Uart_SendStringNL(3, "DefaultInterrupt");
-    Uart_SendStringNL(4, "DefaultInterrupt");
-    while(1);  // hold here so we can read UART messages
-}
-
-void __attribute__((interrupt, no_auto_psv)) _MathError(void)
-{
-    Uart_SendStringNL(1, "_MATHERR");
-    Uart_SendStringNL(2, "_MATHERR");
-    Uart_SendStringNL(3, "_MATHERR");
-    Uart_SendStringNL(4, "_MATHERR");
-    while(1);  // hold here so we can read UART messages
-}
-
-void __attribute__((interrupt, no_auto_psv)) _U1RXInterrupt(void)
+void _ISR _U1RXInterrupt(void)
 {
     // radiance data
     IFS0bits.U1RXIF = false; // clear interrupt bit
@@ -119,7 +108,7 @@ void __attribute__((interrupt, no_auto_psv)) _U1RXInterrupt(void)
     }
 }
 
-void __attribute__((interrupt, no_auto_psv)) _U2RXInterrupt(void)
+void _ISR _U2RXInterrupt(void)
 {
     // irradiance data
     IFS1bits.U2RXIF = false; // clear interrupt bit
@@ -134,7 +123,7 @@ void __attribute__((interrupt, no_auto_psv)) _U2RXInterrupt(void)
     }
 }
 
-void __attribute__((interrupt, no_auto_psv)) _U3RXInterrupt(void)
+void _ISR _U3RXInterrupt(void)
 {
     // muxed data
     IFS5bits.U3RXIF = false; // clear interrupt bit
@@ -216,7 +205,7 @@ void __attribute__((interrupt, no_auto_psv)) _U3RXInterrupt(void)
     }
 }
 
-void __attribute__((interrupt, no_auto_psv)) _U4RXInterrupt(void)
+void _ISR _U4RXInterrupt(void)
 {
     // this interrupt waits for a message start (either ? or !),
     // then buffers the command up to the * character
@@ -279,7 +268,7 @@ void __attribute__((interrupt, no_auto_psv)) _U4RXInterrupt(void)
     }
 }
 
-void __attribute__((interrupt, no_auto_psv)) _T1Interrupt()
+void _ISR _T1Interrupt()
 {
     /* ISR for TIMER 1 
        Heartbeat LED_Heartbeat (orange) and bootup led (Red)
@@ -325,7 +314,7 @@ void __attribute__((interrupt, no_auto_psv)) _T1Interrupt()
     }
 }
 
-void __attribute__((interrupt, no_auto_psv)) _T4Interrupt()
+void _ISR _T4Interrupt()
 {
     /* ISR for TIMER 4 
        Generate clock to send data to mux every 50ms
@@ -444,10 +433,10 @@ uint8_t getVitals(void)
     }
     if (FlagVitalsRequested == 2) { // remote request, send data to remote (mux)
         // queue data to send to mux
-        char TempReply[15]="r";
+        char TempReply[15] = "r";
         strcat(TempReply, PrintoutTemp);
-        strcat(TempReply,"*");
-        memcpy(CmdToMux, TempReply, sizeof(TempReply));
+        strcat(TempReply, "*");
+        memcpy(CmdToMux, TempReply, sizeof (TempReply));
         FlagTxCMDMux = 1;
     }
     return 1;
@@ -490,12 +479,12 @@ void processMuxedCmd(uint16_t MsgLength, uint16_t MsgStartPos)
         }
     }
 
-    if ((ProcCommand[0] == 'r')&&(ProcCommand[MsgLength-1] == '*')) {
+    if ((ProcCommand[0] == 'r')&&(ProcCommand[MsgLength - 1] == '*')) {
         // this is a reply (starting with r, ending with *)
         if (FlagWaitingForRemoteVitals) {
             // TODO: send received data out on mux
             uint8_t i = 1;
-            while (i < MsgLength-1){        // don't send the last character (*))
+            while (i < MsgLength - 1) { // don't send the last character (*))
                 Uart_SendChar(4, ProcCommand[i++]);
             }
             Uart_SendChar(4, '\n');
@@ -508,38 +497,105 @@ void processMuxedCmd(uint16_t MsgLength, uint16_t MsgStartPos)
     }
 }
 
+uint8_t printGyro(struct imu_t * imu){
+    float x, y, z;
+    char print[10] = {0};
+    if (!LSM9DS1_gyroAvailable(imu)){
+        Uart_SendStringNL(4, "no new gyro data");
+        return 0;
+    }
+    LSM9DS1_readGyro(imu);
+    x = LSM9DS1_calcGyro(imu, imu->gx);
+    y = LSM9DS1_calcGyro(imu, imu->gy);
+    z = LSM9DS1_calcGyro(imu, imu->gz);
+//    x= -226.08368;
+//    y= -0.01495;
+//    Uart_SendString(4, "G: ");
+//    ftoa(x, print, 4);
+//    Uart_SendString(4, print);
+//    Uart_SendChar(4, ',');
+//    ftoa(y, print, 5);
+//    Uart_SendString(4, print);
+//    Uart_SendChar(4, ',');
+//    ftoa(z, print, 4);
+//    Uart_SendString(4, print);
+//    Uart_SendChar(4, '\n');
+    
+    
+    
+    return 1;
+}
+
+uint8_t printAcc(struct imu_t * imu){
+    float x, y, z;
+    char print[10] = {0};
+    if (!LSM9DS1_accelAvailable(imu)){
+        Uart_SendStringNL(4, "no new acc data");
+        return 0;
+    }
+    LSM9DS1_readAccel(imu);
+    x = LSM9DS1_calcAccel(imu, imu->ax);
+    y = LSM9DS1_calcAccel(imu, imu->ay);
+    z = LSM9DS1_calcAccel(imu, imu->az);
+//    x= -226.08368;
+//    y= -0.01495;
+//    Uart_SendString(4, "A: ");
+//    ftoa(x, print, 4);
+//    Uart_SendString(4, print);
+//    Uart_SendChar(4, ',');
+//    ftoa(y, print, 5);
+//    Uart_SendString(4, print);
+//    Uart_SendChar(4, ',');
+//    ftoa(z, print, 4);
+//    Uart_SendString(4, print);
+//    Uart_SendChar(4, '\n');
+    float roll = atan2(y, z);
+    float pitch = atan2(-x, sqrt(y * y + z * z));
+    roll *= 180.0 / pi;
+    pitch *= 180.0 / pi;
+    
+    Uart_SendString(4,"Pitch: ");
+    ftoa(pitch,print,2);
+    Uart_SendString(4, print);
+    Uart_SendString(4," Roll: ");
+    ftoa(roll,print,2);
+    Uart_SendStringNL(4, print);
+    return 1;
+}
+
 int main(void)
 {
 
     /*Initialize*/
     LED_Boot_SetHigh(); // After startup, light red led for 1 second (100 PWM cycles)
     initHardware(); // Init all the hardware components and setup pins
-//    StartWDT();
+    //    StartWDT();
     imu_config_t imuconfig;
     imuconfig.calibrate = 1;
     imuconfig.enable_accel = 1;
     imuconfig.enable_gyro = 1;
     imuconfig.enable_mag = 1;
     imuconfig.low_power_mode = 0;
-    
+
     float flt_test;
-    flt_test=(float)22/7;
-    
-    Uart_SendStringNL(4, "imuconfig.");
+    flt_test = (float) 22 / 7;
+
     imu_t imu;
-    Uart_SendStringNL(4, "IMU and imuconfig.");
     LSM9DS1_init(&imu, &imuconfig);
     Uart_SendStringNL(4, "IMU init done.");
 
     /*Main loop*/
     while (1) {
         ClrWdt(); // kick wdt
-//        char temp[10] = {0};
-//        int16_t LSM_Temp = 0;
-//        LSM9_GetTemp(&LSM_Temp);
-//        itoa(temp, LSM_Temp, 10);
-//        Uart_SendStringNL(4, temp);
+        //        char temp[10] = {0};
+        //        int16_t LSM_Temp = 0;
+        //        LSM9_GetTemp(&LSM_Temp);
+        //        itoa(temp, LSM_Temp, 10);
+        //        Uart_SendStringNL(4, temp);
         
+        printAcc(&imu);
+        
+
         // check if request have been received over mux or aux serial
         if (FlagVitalsRequested > 0) {
             getVitals();
@@ -578,7 +634,7 @@ int main(void)
                 outputMuxedMsg(DeMuxBuffDescr.TargetPort, DeMuxBuffDescr.MsgLength, DeMuxBuffDescr.MsgStartPos);
             }
         }
-        __delay_ms(250);
+        __delay_ms(75);
     }
     return 0;
 }

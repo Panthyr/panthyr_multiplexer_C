@@ -10,6 +10,23 @@
 #define LSM9DS1_COMMUNICATION_TIMEOUT 1000
 #define IMU_AG_ADDR 0x6A; // I2C address pin for Acc/Gyro. Set to 0x6B if SA0 is high
 #define IMU_M_ADDR 0x1C; // I2C address pin for Mag with SA0 and SA1 pulled low
+// accel sample rate can be 1-6
+// 1 = 10 Hz    4 = 238 Hz
+// 2 = 50 Hz    5 = 476 Hz
+// 3 = 119 Hz   6 = 952 Hz
+#define ACC_SAMPLERATE 2
+// gyro sample rate: value between 1-6
+// 1 = 14.9    4 = 238
+// 2 = 59.5    5 = 476
+// 3 = 119     6 = 952
+#define GYRO_SAMPLERATE 2
+// mag data rate can be 0-7
+// 0 = 0.625 Hz  4 = 10 Hz
+// 1 = 1.25 Hz   5 = 20 Hz
+// 2 = 2.5 Hz    6 = 40 Hz
+// 3 = 5 Hz      7 = 80 Hz
+#define MAG_SAMPLERATE 5
+
 
 const float magSensitivity[4] = {0.00014, 0.00029, 0.00043, 0.00058};
 
@@ -24,11 +41,7 @@ uint16_t LSM9DS1_init(imu_t* imu, const imu_config_t* config)
 	imu->settings.gyro.enableZ = config->enable_gyro;
 	// gyro scale can be 245, 500, or 2000
 	imu->settings.gyro.scale = 245;
-	// gyro sample rate: value between 1-6
-	// 1 = 14.9    4 = 238
-	// 2 = 59.5    5 = 476
-	// 3 = 119     6 = 952
-	imu->settings.gyro.sampleRate = 1;
+	imu->settings.gyro.sampleRate = GYRO_SAMPLERATE;
 	// gyro cutoff frequency: value between 0-3
 	// Actual value of cutoff frequency depends
 	// on sample rate.
@@ -50,11 +63,7 @@ uint16_t LSM9DS1_init(imu_t* imu, const imu_config_t* config)
 	imu->settings.accel.enableZ = config->enable_accel;
 	// accel scale can be 2, 4, 8, or 16
 	imu->settings.accel.scale = 2;
-	// accel sample rate can be 1-6
-	// 1 = 10 Hz    4 = 238 Hz
-	// 2 = 50 Hz    5 = 476 Hz
-	// 3 = 119 Hz   6 = 952 Hz
-	imu->settings.accel.sampleRate = 6;
+	imu->settings.accel.sampleRate = ACC_SAMPLERATE;
 	// Accel cutoff freqeuncy can be any value between -1 - 3.
 	// -1 = bandwidth determined by sample rate
 	// 0 = 408 Hz   2 = 105 Hz
@@ -70,12 +79,7 @@ uint16_t LSM9DS1_init(imu_t* imu, const imu_config_t* config)
 	imu->settings.mag.enabled = config->enable_mag;
 	// mag scale can be 4, 8, 12, or 16
 	imu->settings.mag.scale = 4;
-	// mag data rate can be 0-7
-	// 0 = 0.625 Hz  4 = 10 Hz
-	// 1 = 1.25 Hz   5 = 20 Hz
-	// 2 = 2.5 Hz    6 = 40 Hz
-	// 3 = 5 Hz      7 = 80 Hz
-	imu->settings.mag.sampleRate = 7;
+	imu->settings.mag.sampleRate = MAG_SAMPLERATE;
 	imu->settings.mag.tempCompensationEnable = false;
 	// magPerformance can be any value between 0-3
 	// 0 = Low power mode      2 = high performance
@@ -140,7 +144,7 @@ uint16_t LSM9DS1_init(imu_t* imu, const imu_config_t* config)
 		}
 	}
 	// Once everything is initialized, return the WHO_AM_I registers we read:
-	return whoAmICombined;
+	return 1;
 }
 
 void LSM9DS1_initGyro(imu_t* imu)

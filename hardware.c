@@ -2,6 +2,8 @@
 #include "hardware.h"
 #include "I2C1.h"
 #include "uart.h"
+#include "Sensirion_SHT31.h"
+#include "ST_LSM9DS1.h"
 
 void initHardware( void ){
     
@@ -15,6 +17,8 @@ void initHardware( void ){
     InitU4();
     initTimer1();
     initTimer4();
+//    SHT31_InitReset();
+//    LSM9_InitReset();
     checkIfResetByWDT();
     
     /* TP */    
