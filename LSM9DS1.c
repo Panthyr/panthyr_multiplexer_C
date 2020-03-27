@@ -25,7 +25,7 @@
 // 1 = 1.25 Hz   5 = 20 Hz
 // 2 = 2.5 Hz    6 = 40 Hz
 // 3 = 5 Hz      7 = 80 Hz
-#define MAG_SAMPLERATE 5
+#define MAG_SAMPLERATE 7  // set high because we gather 64 samples to calibrate offset
 
 
 const float magSensitivity[4] = {0.00014, 0.00029, 0.00043, 0.00058};
@@ -121,11 +121,9 @@ uint16_t LSM9DS1_init(imu_t* imu, const imu_config_t* config)
 	uint8_t xgTest = LSM9DS1_xgReadByte(imu, WHO_AM_I_XG);	// Read the accel/mag WHO_AM_I
 	uint16_t whoAmICombined = (xgTest << 8) | mTest;
 
-        Uart_SendStringNL(4, "Check WhoAmICombined");
 	if (whoAmICombined != ((WHO_AM_I_AG_Response << 8) | WHO_AM_I_M_Response)) {
 		return 0;
 	}
-        Uart_SendStringNL(4, "WhoAmICombined OK");
 	// Gyro initialization stuff:
 	LSM9DS1_initGyro(imu);	// This will "turn on" the gyro. Setting up interrupts, etc.
 
@@ -137,13 +135,15 @@ uint16_t LSM9DS1_init(imu_t* imu, const imu_config_t* config)
 
 	if (config->calibrate) {
 		if (config->enable_accel || config->enable_gyro) {
+                    Uart_SendStringNL(4, "A/G");
 		    LSM9DS1_calibrate(imu, true);
 		}
 		if (config->enable_mag) {
+                    Uart_SendStringNL(4, "M");
 		    LSM9DS1_calibrateMag(imu, true);
 		}
 	}
-	// Once everything is initialized, return the WHO_AM_I registers we read:
+	// Once everything is initialized, return 1:
 	return 1;
 }
 
@@ -156,8 +156,8 @@ void LSM9DS1_initGyro(imu_t* imu)
 	// ODR_G[2:0] - Output data rate selection
 	// FS_G[1:0] - Gyroscope full-scale selection
 	// BW_G[1:0] - Gyroscope bandwidth selection
-
-	// To disable gyro, set sample rate bits to 0. We'll only set sample
+   
+ 	// To disable gyro, set sample rate bits to 0. We'll only set sample
 	// rate if the gyro is enabled.
 	if (imu->settings.gyro.enabled)
 	{
@@ -336,7 +336,7 @@ void LSM9DS1_calibrateMag(imu_t* imu, bool loadIn)
 	int16_t magMin[3] = {0, 0, 0};
 	int16_t magMax[3] = {0, 0, 0}; // The road warrior
 
-	for (i=0; i<128; i++)
+	for (i=0; i<64; i++)
 	{
 		while (!LSM9DS1_magAvailable(imu));
 		LSM9DS1_readMag(imu);
@@ -348,7 +348,6 @@ void LSM9DS1_calibrateMag(imu_t* imu, bool loadIn)
 		{
 			if (magTemp[j] > magMax[j]) magMax[j] = magTemp[j];
 			if (magTemp[j] < magMin[j]) magMin[j] = magTemp[j];
-//		}M_SCALE_16GS
 		}
 	}
 	for (j = 0; j < 3; j++)

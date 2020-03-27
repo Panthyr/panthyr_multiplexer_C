@@ -1,11 +1,9 @@
-
 #include <math.h>
-
 #include "uart.h"
-//#include <stdio.h> 
+#include "utils.h"
   
 
-void __attribute__((interrupt, no_auto_psv)) _DefaultInterrupt(void)
+void __ISR _DefaultInterrupt(void)
 {
     Uart_SendStringNL(1, "DefaultInterrupt");
     Uart_SendStringNL(2, "DefaultInterrupt");
@@ -14,7 +12,7 @@ void __attribute__((interrupt, no_auto_psv)) _DefaultInterrupt(void)
     while(1);  // hold here so we can read UART messages
 }
 
-void __attribute__((interrupt, no_auto_psv)) _MathError(void)
+void __ISR _MathError(void)
 {
     Uart_SendStringNL(1, "_MATHERR");
     Uart_SendStringNL(2, "_MATHERR");

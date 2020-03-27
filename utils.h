@@ -8,7 +8,7 @@
 #ifndef UTILS_H
 #define	UTILS_H
 
-#define _ISR __attribute__((interrupt, no_auto_psv))
+#define __ISR __attribute__((interrupt, no_auto_psv))
 
 // low level, used in intToStr
 void reverse(char* str, int len);

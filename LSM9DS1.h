@@ -53,7 +53,7 @@ typedef struct imu_s {
 	// accelerometer and gyroscope bias calculated in calibrate().
 	bool _autoCalc;
 
-} imu_t;
+}imu_t;
 
 /**! * Configuration struct
  */
@@ -65,7 +65,7 @@ typedef struct imu_config_s {
 	uint8_t mag_addr; // I2C address for magnetometer
 	bool calibrate; // Calibrate when starting up
 	bool low_power_mode; // enable low power mode
-} imu_config_t;
+}imu_config_t;
 
 typedef enum lsm9ds1_axis_e {
 	X_AXIS,
