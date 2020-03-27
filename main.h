@@ -18,6 +18,7 @@
 
 #include <xc.h> // include processor files - each processor file is guarded.  
 #include <stdint.h>
+#include "LSM9DS1.h"
 
 const char FW_VERSION[5] = "v0.4";
 
@@ -30,9 +31,22 @@ void formatVitals(char PrintoutTemp[], char PrintoutHum[]);
 void outputMuxedMsg(uint8_t TargetPort, uint16_t MsgLength, uint16_t MsgStartPos);
 void processMuxedCmd(uint16_t MsgLength, uint16_t MsgStartPos);
 void muxSendCommand();
-uint8_t printGyro(struct imu_t * imu);
-uint8_t printAcc(struct imu_t * imu);
 
+uint8_t printIMUData(uint8_t port, 
+                        imu_t * imu, 
+                        bool printGyro, 
+                        bool printAcc, 
+                        bool printMag, 
+                        bool printPR,
+                        bool printHeading,
+                        bool printAlsoIfOld);
+uint8_t printGyro(uint8_t serialPort, imu_t * imu);
+uint8_t printAcc(uint8_t serialPort, imu_t * imu);
+uint8_t printMag(uint8_t serialPort, imu_t * imu);
+uint8_t calcPitchRoll (imu_t * imu, float * pitch, float * roll);
+uint8_t printPitchRoll(uint8_t serialPort, float * pPitch, float * pRoll);
+uint8_t calcHeading(imu_t * imu, int16_t * pHeading);
+uint8_t printHeading(uint8_t serialPort, int16_t * pHeading);
 
 /* Specify an extension for GCC based compilers */
 #if defined(__GNUC__)

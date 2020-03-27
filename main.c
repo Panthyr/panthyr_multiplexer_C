@@ -19,8 +19,8 @@
 #define FCY 6000000UL    // Instruction cycle frequency, Hz - required for __delayXXX() to work
 #include "config.h"
 #include "main.h"
+//#include <stdbool.h>
 #include "string.h"                 // for strcat
-#include <stdbool.h>
 #include <stdlib.h>                 // for itoa
 #include <libpic30.h>               // contains delay functions
 #include "hardware.h"               // 
@@ -30,7 +30,7 @@
 #include "LSM9DS1.h"        // IMU
 #include "utils.h"
 #include "math.h"
-#define pi 3.14159265359
+#define PI 3.14159265359
 
 // Variables
 
@@ -93,7 +93,7 @@ bool CountUp = 1; // For the PWM of the heartbeat led
 uint16_t bootLed = 500; // Used to light orange led for 2.5s after boot (400 half PWM 0.01s cycles)
 // Decremented each half PWM duty cycle until zero
 
-void _ISR _U1RXInterrupt(void)
+void __ISR _U1RXInterrupt(void)
 {
     // radiance data
     IFS0bits.U1RXIF = false; // clear interrupt bit
@@ -108,7 +108,7 @@ void _ISR _U1RXInterrupt(void)
     }
 }
 
-void _ISR _U2RXInterrupt(void)
+void __ISR _U2RXInterrupt(void)
 {
     // irradiance data
     IFS1bits.U2RXIF = false; // clear interrupt bit
@@ -123,7 +123,7 @@ void _ISR _U2RXInterrupt(void)
     }
 }
 
-void _ISR _U3RXInterrupt(void)
+void __ISR _U3RXInterrupt(void)
 {
     // muxed data
     IFS5bits.U3RXIF = false; // clear interrupt bit
@@ -205,7 +205,7 @@ void _ISR _U3RXInterrupt(void)
     }
 }
 
-void _ISR _U4RXInterrupt(void)
+void __ISR _U4RXInterrupt(void)
 {
     // this interrupt waits for a message start (either ? or !),
     // then buffers the command up to the * character
@@ -268,7 +268,7 @@ void _ISR _U4RXInterrupt(void)
     }
 }
 
-void _ISR _T1Interrupt()
+void __ISR _T1Interrupt()
 {
     /* ISR for TIMER 1 
        Heartbeat LED_Heartbeat (orange) and bootup led (Red)
@@ -314,7 +314,7 @@ void _ISR _T1Interrupt()
     }
 }
 
-void _ISR _T4Interrupt()
+void __ISR _T4Interrupt()
 {
     /* ISR for TIMER 4 
        Generate clock to send data to mux every 50ms
@@ -497,71 +497,211 @@ void processMuxedCmd(uint16_t MsgLength, uint16_t MsgStartPos)
     }
 }
 
-uint8_t printGyro(struct imu_t * imu){
-    float x, y, z;
-    char print[10] = {0};
-    if (!LSM9DS1_gyroAvailable(imu)){
-        Uart_SendStringNL(4, "no new gyro data");
+uint8_t printIMUData(uint8_t port, 
+                        imu_t * imu, 
+                        bool doPrintGyro, 
+                        bool doPrintAcc, 
+                        bool doPrintMag, 
+                        bool doPrintPitchRoll,
+                        bool doPrintHeading,
+                        bool printAlsoIfOld)
+{   
+    bool printedSomething = 0;
+    // gyro (and pitch/roll)
+    if ((printAlsoIfOld) || (LSM9DS1_gyroAvailable(imu))){
+        if (doPrintGyro){
+            printGyro(port, imu);
+            printedSomething = 1;
+        }
+        ClrWdt();
+        if (doPrintPitchRoll){
+            
+            float PitchValue, RollValue = 0;
+            float * pRollValue = &RollValue;
+            float * pPitchValue = &PitchValue;
+
+            calcPitchRoll (imu, pPitchValue, pRollValue);
+            printPitchRoll(port, pPitchValue, pRollValue);
+            printedSomething = 1;
+        }
+    }
+    if (doPrintAcc){
+        if ((printAlsoIfOld) || (LSM9DS1_accelAvailable(imu))){ 
+            printAcc(port, imu);
+            printedSomething = 1;
+        }
+    }
+    if ((printAlsoIfOld) || (LSM9DS1_magAvailable(imu))){
+        if (doPrintMag){
+            printMag(port,imu);
+            printedSomething = 1;
+        }
+        if (doPrintHeading){
+            int16_t Heading = 361;
+            int16_t * pHeading = &Heading;
+            calcHeading(imu, pHeading);
+            printHeading(port, pHeading);
+            printedSomething = 1;
+        }
+    }
+    
+    if (printedSomething){
+        return 1;
+    }else{
         return 0;
     }
-    LSM9DS1_readGyro(imu);
+}
+
+uint8_t printGyro(uint8_t serialPort, imu_t * imu){
+    float x, y, z;
+    char print[10] = {0};
+    
+    // get data
     x = LSM9DS1_calcGyro(imu, imu->gx);
     y = LSM9DS1_calcGyro(imu, imu->gy);
     z = LSM9DS1_calcGyro(imu, imu->gz);
-//    x= -226.08368;
-//    y= -0.01495;
-//    Uart_SendString(4, "G: ");
-//    ftoa(x, print, 4);
-//    Uart_SendString(4, print);
-//    Uart_SendChar(4, ',');
-//    ftoa(y, print, 5);
-//    Uart_SendString(4, print);
-//    Uart_SendChar(4, ',');
-//    ftoa(z, print, 4);
-//    Uart_SendString(4, print);
-//    Uart_SendChar(4, '\n');
     
-    
+    // format and print to port
+    Uart_SendString(serialPort, "G:");
+    ftoa(x, print, 4);
+    Uart_SendString(serialPort, print);
+    Uart_SendChar(serialPort, ',');
+    ftoa(y, print, 4);
+    Uart_SendString(serialPort, print);
+    Uart_SendChar(serialPort, ',');
+    ftoa(z, print, 4);
+    Uart_SendStringNL(serialPort, print);
     
     return 1;
 }
 
-uint8_t printAcc(struct imu_t * imu){
+uint8_t printAcc(uint8_t serialPort, imu_t * imu){
     float x, y, z;
     char print[10] = {0};
-    if (!LSM9DS1_accelAvailable(imu)){
-        Uart_SendStringNL(4, "no new acc data");
-        return 0;
-    }
+    
+    // get data
     LSM9DS1_readAccel(imu);
     x = LSM9DS1_calcAccel(imu, imu->ax);
     y = LSM9DS1_calcAccel(imu, imu->ay);
     z = LSM9DS1_calcAccel(imu, imu->az);
-//    x= -226.08368;
-//    y= -0.01495;
-//    Uart_SendString(4, "A: ");
-//    ftoa(x, print, 4);
-//    Uart_SendString(4, print);
-//    Uart_SendChar(4, ',');
-//    ftoa(y, print, 5);
-//    Uart_SendString(4, print);
-//    Uart_SendChar(4, ',');
-//    ftoa(z, print, 4);
-//    Uart_SendString(4, print);
-//    Uart_SendChar(4, '\n');
-    float roll = atan2(y, z);
-    float pitch = atan2(-x, sqrt(y * y + z * z));
-    roll *= 180.0 / pi;
-    pitch *= 180.0 / pi;
     
-    Uart_SendString(4,"Pitch: ");
-    ftoa(pitch,print,2);
-    Uart_SendString(4, print);
-    Uart_SendString(4," Roll: ");
-    ftoa(roll,print,2);
-    Uart_SendStringNL(4, print);
+    // convert and print
+    Uart_SendString(serialPort, "A:");
+    ftoa(x, print, 4);
+    Uart_SendString(serialPort, print);
+    Uart_SendChar(4, ',');
+    ftoa(y, print, 4);
+    Uart_SendString(serialPort, print);
+    Uart_SendChar(4, ',');
+    ftoa(z, print, 4);
+    Uart_SendStringNL(serialPort, print);
+    
     return 1;
 }
+
+uint8_t printMag(uint8_t serialPort, imu_t * imu){
+    float x, y, z;
+    char print[10] = {0};
+    
+    // get data
+    LSM9DS1_readMag(imu);
+    x = LSM9DS1_calcMag(imu, imu->mx);
+    y = LSM9DS1_calcMag(imu, imu->my);
+    z = LSM9DS1_calcMag(imu, imu->mz);
+    
+    // convert and print
+    Uart_SendString(serialPort, "M:");
+    ftoa(x, print, 4);
+    Uart_SendString(serialPort, print);
+    Uart_SendChar(4, ',');
+    ftoa(y, print, 4);
+    Uart_SendString(serialPort, print);
+    Uart_SendChar(4, ',');
+    ftoa(z, print, 4);
+    Uart_SendStringNL(serialPort, print);
+
+    return 1;
+}
+
+uint8_t calcPitchRoll (imu_t * imu, float * pPitch, float * pRoll)
+{
+    float x, y, z;
+    float temp = 0.0;
+    
+    LSM9DS1_readAccel(imu);
+    x = LSM9DS1_calcAccel(imu, imu->ax);
+    y = LSM9DS1_calcAccel(imu, imu->ay);
+    z = LSM9DS1_calcAccel(imu, imu->az);
+    float rollRad = atan2(y, z);
+    float pitchRad = atan2(-x, sqrt(y * y + z * z));
+    
+    temp = (rollRad * 180.0) / PI;
+    *pRoll = temp;
+    temp = (pitchRad * 180.0) / PI;
+    *pPitch = temp;
+    return 1;
+}
+
+uint8_t printPitchRoll(uint8_t serialPort, float * pPitch, float * pRoll)
+{
+    char print[10] = {0};
+    
+    Uart_SendString(serialPort,"P:");
+    ftoa(*pPitch, print,2);
+    Uart_SendStringNL(serialPort, print);
+    Uart_SendString(serialPort,"R:");
+    ftoa(*pRoll, print, 2);
+    Uart_SendStringNL(serialPort, print);
+    return 1;
+}
+
+uint8_t calcHeading (imu_t * imu, int16_t * pHeading)
+{
+    float x, y, z;
+    
+    LSM9DS1_readMag(imu);
+    x = LSM9DS1_calcMag(imu, imu->mx);
+    y = LSM9DS1_calcMag(imu, imu->my);
+    z = LSM9DS1_calcMag(imu, imu->mz);
+
+    float headingRad = 0.00;
+    if (y == 0){
+        if (x < 0){
+            headingRad = PI;
+        }else{
+            headingRad = 0;
+        }
+    }else{
+        headingRad = atan2(x, y);
+    }
+    
+    if (headingRad > PI){
+        headingRad -= (2 * PI);
+    }else{
+        if(headingRad < -PI){
+            headingRad += (2 * PI);
+        }
+    }
+    // convert from radians to degrees
+    float temp;
+    temp = headingRad * 180.0;
+    temp /= PI;
+    *pHeading = (int16_t)(temp);
+    
+    return 1;
+}
+        
+
+uint8_t printHeading(uint8_t serialPort, int16_t * pHeading)
+{
+    char print[10] = {0};
+    
+    Uart_SendString(serialPort,"H:");
+    itoa(print, *pHeading, 10);
+    Uart_SendStringNL(serialPort, print);
+    return 1;
+}
+
 
 int main(void)
 {
@@ -569,21 +709,20 @@ int main(void)
     /*Initialize*/
     LED_Boot_SetHigh(); // After startup, light red led for 1 second (100 PWM cycles)
     initHardware(); // Init all the hardware components and setup pins
-    //    StartWDT();
-    imu_config_t imuconfig;
+    Uart_SendStringNL(4, "HW init done.");
+    struct imu_config_s imuconfig;
     imuconfig.calibrate = 1;
     imuconfig.enable_accel = 1;
     imuconfig.enable_gyro = 1;
     imuconfig.enable_mag = 1;
     imuconfig.low_power_mode = 0;
+    struct imu_s imu;
 
-    float flt_test;
-    flt_test = (float) 22 / 7;
-
-    imu_t imu;
     LSM9DS1_init(&imu, &imuconfig);
     Uart_SendStringNL(4, "IMU init done.");
 
+    StartWDT();
+    
     /*Main loop*/
     while (1) {
         ClrWdt(); // kick wdt
@@ -593,7 +732,7 @@ int main(void)
         //        itoa(temp, LSM_Temp, 10);
         //        Uart_SendStringNL(4, temp);
         
-        printAcc(&imu);
+        printIMUData(4,&imu,1,1,1,1,1,0);
         
 
         // check if request have been received over mux or aux serial
