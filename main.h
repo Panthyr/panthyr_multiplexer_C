@@ -26,8 +26,20 @@ const char FW_VERSION[5] = "v0.4";
 void muxRad(void);
 void muxIrr(void);
 void sendVersion(void);
+// flagVitalsRequested can be 1 (requested locally) 
+// or 2(requested remotely over mux)
+// get local temp/rh, send them out of the mux (if requested remotely) or 
+// uart4 (if requested locally)
+// if requested locally, send request over mux and set flag to wait for it
 uint8_t getVitals(void);
 void formatVitals(char PrintoutTemp[], char PrintoutHum[]);
+// flagImuRequested can be 1 (requested locally) 
+// or 2(requested remotely over mux)
+// if flagImuRequested==1 and I'm top -> send p/r/h data over uart4 (aux)
+// if flagImuRequested==1 and not top -> send request over mux
+// if flagImuRequested==2 and I'm top -> send p/r/h data over mux
+// if flagImuRequested==2 and not top -> send p/r/h with --- as value
+uint8_t getImu (void);
 void outputMuxedMsg(uint8_t TargetPort, uint16_t MsgLength, uint16_t MsgStartPos);
 void processMuxedCmd(uint16_t MsgLength, uint16_t MsgStartPos);
 void muxSendCommand();

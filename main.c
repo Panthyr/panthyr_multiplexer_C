@@ -29,8 +29,6 @@
 #include "Sensirion_SHT31.h"        // temp/RH sensor
 #include "LSM9DS1.h"        // IMU
 #include "utils.h"
-#include "math.h"
-#define PI 3.14159265359
 
 // Variables
 
@@ -63,7 +61,8 @@ struct MuxRxBuff {
 struct DemuxBuff { // describes the data to be demuxed in the MuxRxBuff
     volatile uint8_t TargetPort; // Where this message should go
     volatile uint16_t MsgLength; // Number of received chars in message
-    volatile uint16_t MsgStartPos; // position in the MuxRxBuff where the message starts
+    // next var: position in the MuxRxBuff where the message starts
+    volatile uint16_t MsgStartPos; 
 } DeMuxBuffDescr = {0, 0, 0};
 
 char AuxRx[COMMANDMAXLENGTH] = {0}; // Buffer for the received commands on UART4
@@ -71,15 +70,19 @@ volatile uint8_t AuxRxPos = 0; // Write position in the buffer
 
 /* FLAGS */
 volatile bool FlagMuxDoDemux = 0; // Flag if there's buffered RX from U3
-volatile uint8_t FlagVitalsRequested = 0; // 1 if requested from aux serial, 2 if through mux
+// next one is 1 if requested from aux serial, 2 if through mux
+volatile uint8_t FlagVitalsRequested = 0; 
 volatile uint8_t FlagVersionRequested = 0; // send version info to aux
-volatile bool FlagWaitingForRemoteVitals = 0; // to identify that we've requested data from "the other side"
+// next variable to identify that we've requested data from "the other side"
+volatile bool FlagWaitingForRemoteVitals = 0; 
 bool FlagTxCMDMux = 0; // to flag that we need to send a command over the mux
+volatile uint8_t FlagImuRequested = 0;
 
 // WORKING VARIABLES
 int16_t SHT31_Temp = 0;
 uint8_t SHT31_RH = 0;
-char CmdToMux[COMMANDMAXLENGTH] = {0}; // buffer for command that needs to be send to remote
+// buffer for command that needs to be send to remote
+char CmdToMux[COMMANDMAXLENGTH] = {0}; 
 //uint16_t MsgNumber = 0; // identifies requests to remote mux/demux board
 
 
@@ -90,7 +93,8 @@ bool LedState = 0; // Heartbeat led state
 uint16_t PWMValue = 0x300; // Start value for PWM duty
 int8_t PWMStep = 7; // Step size for PWM
 bool CountUp = 1; // For the PWM of the heartbeat led
-uint16_t bootLed = 500; // Used to light orange led for 2.5s after boot (400 half PWM 0.01s cycles)
+// Used to light orange led for 2.5s after boot (400 half PWM 0.01s cycles)
+uint16_t bootLed = 500; 
 // Decremented each half PWM duty cycle until zero
 
 void __ISR _U1RXInterrupt(void)
@@ -175,7 +179,8 @@ void __ISR _U3RXInterrupt(void)
         }
         break;
     case 6:
-        if (MuxRxBuff.ExpectedChr > 0) { // Store data until all expected chars received
+        // Store data until all expected chars received
+        if (MuxRxBuff.ExpectedChr > 0) { 
             MuxRxBuff.CircBuff[MuxRxBuff.WritePos] = x;
             MuxRxBuff.ExpectedChr--;
             MuxRxBuff.MsgLength++;
@@ -209,9 +214,11 @@ void __ISR _U4RXInterrupt(void)
 {
     // this interrupt waits for a message start (either ? or !),
     // then buffers the command up to the * character
-    // buffer is COMMANDMAXLENGTH bytes, max command is COMMANDMAXLENGTH - 2 (COMMANDMAXLENGTH - start ? or ! - end *)
+    // buffer is COMMANDMAXLENGTH bytes, 
+    // max command is COMMANDMAXLENGTH - 2 (COMMANDMAXLENGTH - start ? or ! - end *)
     // if a known command is received, it sets its flag for the main loop to handle
-    // if it gets more than COMMANDMAXLENGTH bytes, an unknown command or a new ?/! character,
+    // if it gets more than COMMANDMAXLENGTH bytes, 
+    // an unknown command or a new ?/! character,
     // it clears the buffer and restarts
 
     // possible commands:
@@ -229,18 +236,21 @@ void __ISR _U4RXInterrupt(void)
     char x = U4RXREG;
     switch (x) {
     case '!': // beginning of new command
-        memset(AuxRx, 0, sizeof (AuxRx)); // start new receive operation, clear previous content
+        // start new receive operation, clear previous content
+        memset(AuxRx, 0, sizeof (AuxRx)); 
         AuxRx[0] = '!';
         AuxRxPos = 1; // wait for the next character to come in
         break;
     case '?': // beginning of new request
-        memset(AuxRx, 0, sizeof (AuxRx)); // start new receive operation, clear previous content
+        // start new receive operation, clear previous content
+        memset(AuxRx, 0, sizeof (AuxRx)); 
         AuxRx[0] = '?';
         AuxRxPos = 1; // wait for the next character to come in
         break;
     case '*': // end of command/request, check what has been requested
         AuxRx[AuxRxPos++] = '*'; // add the * to the buffer and set to next position
-        AuxRx[AuxRxPos] = 0; // add 0 (should not be needed since array was initialized with zeros?)
+        // add 0 (should not be needed since array was initialized with zeros?)
+        AuxRx[AuxRxPos] = 0; 
 
         /* check for correct commands*/
         if (strcmp(AuxRx, "?vitals*") == 0) {
@@ -250,9 +260,14 @@ void __ISR _U4RXInterrupt(void)
         if (strcmp(AuxRx, "?ver*") == 0) {
             FlagVersionRequested = 1;
         }
-
-        AuxRxPos = 0; // either a valid command was passed and the appropriate flag set,
-        memset(AuxRx, 0, sizeof (AuxRx)); // or the command was invalid. Either way, restart receive
+        if (strcmp(AuxRx, "?imu*") == 0) {
+            FlagImuRequested = 1;
+        }
+        
+        // either a valid command was passed and the appropriate flag set,
+        AuxRxPos = 0; 
+        // or the command was invalid. Either way, restart receive
+        memset(AuxRx, 0, sizeof (AuxRx)); 
         break;
     default: // not one of the special characters we're looking for
         if (AuxRxPos > 0) { // should already have received ? or !
@@ -261,7 +276,8 @@ void __ISR _U4RXInterrupt(void)
         break;
     }
 
-    if (AuxRxPos > COMMANDMAXLENGTH) { // too many chars to be valid, restart rx operation
+    if (AuxRxPos > COMMANDMAXLENGTH) { 
+        // too many chars to be valid, restart rx operation
         AuxRxPos = 0;
         memset(AuxRx, 0, sizeof (AuxRx));
         // clear buffer
@@ -289,7 +305,9 @@ void __ISR _T1Interrupt()
             PWMValue = PWMValue - PWMStep;
         }
         if (PWMValue > 0x100) {
-            PWMStep = 15; // Value of PWMStep changes depending on duty cycle to compensate for non-linearity of led brightness
+            // Value of PWMStep changes depending on duty cycle 
+            // to compensate for non-linearity of led brightness
+            PWMStep = 15; 
         } else {
             PWMStep = 2;
         }
@@ -409,7 +427,8 @@ void sendVersion(void)
 
 uint8_t getVitals(void)
 {
-    // flagVitalsRequested can be 1 (requested locally) or 2(requested remotely over mux)
+    // flagVitalsRequested can be 1 (requested locally) 
+    // or 2(requested remotely over mux)
     // get local temp/rh, send them out of the mux (if requested remotely) or 
     // uart4 (if requested locally)
     // if requested locally, send request over mux and set flag to wait for it
@@ -515,7 +534,7 @@ uint8_t printIMUData(uint8_t port,
         }
         ClrWdt();
         if (doPrintPitchRoll){
-            
+            // prepare pointers to floats to store results
             float PitchValue, RollValue = 0;
             float * pRollValue = &RollValue;
             float * pPitchValue = &PitchValue;
@@ -670,11 +689,6 @@ int main(void)
     /*Main loop*/
     while (1) {
         ClrWdt(); // kick wdt
-        //        char temp[10] = {0};
-        //        int16_t LSM_Temp = 0;
-        //        LSM9_GetTemp(&LSM_Temp);
-        //        itoa(temp, LSM_Temp, 10);
-        //        Uart_SendStringNL(4, temp);
         
         printIMUData(4,&imu,1,1,1,1,1,0);
         
@@ -708,13 +722,18 @@ int main(void)
             FlagMuxDoDemux = 0; // must be before the loop to avoid race condition:
             /* If a complete new frame comes in during the while loop below,
                and then MuxDoDemux gets set to 0 at the end,
-               if no new tmr4 interrupt gets called, that buffer part never gets written out */
+               if no new tmr4 interrupt gets called, 
+             * that buffer part never gets written out */
 
             // now handle the package
-            if (DeMuxBuffDescr.TargetPort == 0) { // msg has to be handled by processor
-                processMuxedCmd(DeMuxBuffDescr.MsgLength, DeMuxBuffDescr.MsgStartPos);
+            if (DeMuxBuffDescr.TargetPort == 0) { 
+                // msg has to be handled by processor
+                processMuxedCmd(DeMuxBuffDescr.MsgLength, 
+                                DeMuxBuffDescr.MsgStartPos);
             } else {
-                outputMuxedMsg(DeMuxBuffDescr.TargetPort, DeMuxBuffDescr.MsgLength, DeMuxBuffDescr.MsgStartPos);
+                outputMuxedMsg(DeMuxBuffDescr.TargetPort, 
+                                DeMuxBuffDescr.MsgLength, 
+                                DeMuxBuffDescr.MsgStartPos);
             }
         }
         __delay_ms(75);
