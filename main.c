@@ -623,25 +623,6 @@ uint8_t printMag(uint8_t serialPort, imu_t * imu){
     return 1;
 }
 
-uint8_t calcPitchRoll (imu_t * imu, float * pPitch, float * pRoll)
-{
-    float x, y, z;
-    float temp = 0.0;
-    
-    LSM9DS1_readAccel(imu);
-    x = LSM9DS1_calcAccel(imu, imu->ax);
-    y = LSM9DS1_calcAccel(imu, imu->ay);
-    z = LSM9DS1_calcAccel(imu, imu->az);
-    float rollRad = atan2(y, z);
-    float pitchRad = atan2(-x, sqrt(y * y + z * z));
-    
-    temp = (rollRad * 180.0) / PI;
-    *pRoll = temp;
-    temp = (pitchRad * 180.0) / PI;
-    *pPitch = temp;
-    return 1;
-}
-
 uint8_t printPitchRoll(uint8_t serialPort, float * pPitch, float * pRoll)
 {
     char print[10] = {0};
@@ -654,43 +635,6 @@ uint8_t printPitchRoll(uint8_t serialPort, float * pPitch, float * pRoll)
     Uart_SendStringNL(serialPort, print);
     return 1;
 }
-
-uint8_t calcHeading (imu_t * imu, int16_t * pHeading)
-{
-    float x, y, z;
-    
-    LSM9DS1_readMag(imu);
-    x = LSM9DS1_calcMag(imu, imu->mx);
-    y = LSM9DS1_calcMag(imu, imu->my);
-    z = LSM9DS1_calcMag(imu, imu->mz);
-
-    float headingRad = 0.00;
-    if (y == 0){
-        if (x < 0){
-            headingRad = PI;
-        }else{
-            headingRad = 0;
-        }
-    }else{
-        headingRad = atan2(x, y);
-    }
-    
-    if (headingRad > PI){
-        headingRad -= (2 * PI);
-    }else{
-        if(headingRad < -PI){
-            headingRad += (2 * PI);
-        }
-    }
-    // convert from radians to degrees
-    float temp;
-    temp = headingRad * 180.0;
-    temp /= PI;
-    *pHeading = (int16_t)(temp);
-    
-    return 1;
-}
-        
 
 uint8_t printHeading(uint8_t serialPort, int16_t * pHeading)
 {

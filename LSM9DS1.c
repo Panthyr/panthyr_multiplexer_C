@@ -5,7 +5,8 @@
 #include "hardware.h"
 #include "I2C1.h"
 #include "uart.h"
-
+#include "math.h" // goniometric functions for p/r and heading
+#define PI 3.14159265359 // for p/r and heading
 
 #define LSM9DS1_COMMUNICATION_TIMEOUT 1000
 #define IMU_AG_ADDR 0x6A; // I2C address pin for Acc/Gyro. Set to 0x6B if SA0 is high
@@ -890,6 +891,61 @@ void LSM9DS1_setFIFO(imu_t* imu, fifoMode_type_t fifoMode, uint8_t fifoThs)
 uint8_t LSM9DS1_getFIFOSamples(imu_t* imu)
 {
 	return (LSM9DS1_xgReadByte(imu, FIFO_SRC) & 0x3F);
+}
+
+uint8_t calcPitchRoll (imu_t * imu, float * pPitch, float * pRoll)
+{
+    float x, y, z;
+    float temp = 0.0;
+    
+    LSM9DS1_readAccel(imu);
+    x = LSM9DS1_calcAccel(imu, imu->ax);
+    y = LSM9DS1_calcAccel(imu, imu->ay);
+    z = LSM9DS1_calcAccel(imu, imu->az);
+    float rollRad = atan2(y, z);
+    float pitchRad = atan2(-x, sqrt(y * y + z * z));
+    
+    temp = (rollRad * 180.0) / PI;
+    *pRoll = temp;
+    temp = (pitchRad * 180.0) / PI;
+    *pPitch = temp;
+    return 1;
+}
+
+uint8_t calcHeading (imu_t * imu, int16_t * pHeading)
+{
+    float x, y, z;
+    
+    LSM9DS1_readMag(imu);
+    x = LSM9DS1_calcMag(imu, imu->mx);
+    y = LSM9DS1_calcMag(imu, imu->my);
+    z = LSM9DS1_calcMag(imu, imu->mz);
+
+    float headingRad = 0.00;
+    if (y == 0){
+        if (x < 0){
+            headingRad = PI;
+        }else{
+            headingRad = 0;
+        }
+    }else{
+        headingRad = atan2(x, y);
+    }
+    
+    if (headingRad > PI){
+        headingRad -= (2 * PI);
+    }else{
+        if(headingRad < -PI){
+            headingRad += (2 * PI);
+        }
+    }
+    // convert from radians to degrees
+    float temp;
+    temp = headingRad * 180.0;
+    temp /= PI;
+    *pHeading = (int16_t)(temp);
+    
+    return 1;
 }
 
 void LSM9DS1_constrainScales(imu_t* imu)

@@ -411,6 +411,16 @@ void LSM9DS1_calcmRes(imu_t * imu);
 // be set prior to calling this function.
 void LSM9DS1_calcaRes(imu_t * imu);
 
+// calcPitchRoll() -- calculate p/r from ax,ay,az
+// Forces a read on accelerometer first
+// Returns p/r to *pPitch and *pRoll
+uint8_t calcPitchRoll (imu_t * imu, float * pitch, float * roll);
+
+// calcHeading() -- Calculate the heading from mx,my,mz
+// Forces a read on the mag sensor,
+// Returns the heading to * pHeading
+uint8_t calcHeading(imu_t * imu, int16_t * pHeading);
+
 //////////////////////
 // Helper Functions //
 //////////////////////
