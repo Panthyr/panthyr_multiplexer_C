@@ -85,8 +85,15 @@ void initOscillator( void ){
     REFOCONL = 0x0000;
     // RODIV 0; 
     REFOCONH = 0x0000;
+
+    /* starting at compiler XC16v 1.36, REFOTRIML should be replaced by REFOTRIMH as this was an error in older h files.
+     * the REFOTRIML did not really exist, though it is mentioned in the (non-updated) datasheets, MCC generators and h files
+     * (see: https://www.microchip.com/forums/m1130622.aspx)
+     */
+//    // ROTRIM 0; 
+//    REFOTRIML = 0x0000;
     // ROTRIM 0; 
-    REFOTRIML = 0x0000;
+    REFOTRIMH = 0x0000;
 }
 void initInterrupts (void) {
     /* Set priority for interrupts: uart Rx/Tx and Timer 1 and 4 */
