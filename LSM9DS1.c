@@ -136,11 +136,9 @@ uint16_t LSM9DS1_init(imu_t* imu, const imu_config_t* config)
 
 	if (config->calibrate) {
 		if (config->enable_accel || config->enable_gyro) {
-                    Uart_SendStringNL(4, "A/G");
 		    LSM9DS1_calibrate(imu, true);
 		}
 		if (config->enable_mag) {
-                    Uart_SendStringNL(4, "M");
 		    LSM9DS1_calibrateMag(imu, true);
 		}
 	}

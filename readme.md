@@ -10,10 +10,10 @@ Compiled using the [Microchip XC16 compiler](https://www.microchip.com/mplab/com
 The main loop first sets up the hardware (oscillator, pps, interrupts, UART and timers). It then goes into a loop that first kicks the watchdog timer, then checks for flags which are set in the interrupts and responds as appropriate.
 Most work is done in the UART RX interrupt `_UxRXInterrupt` functions, as they wait for incoming data and set up the flags to notify the main loop.
 
-### WDT
+### Watchdog Timer
 
-* Started just before the main loop
-* Pre- (`FWPSA` , config word 1 bit 4) and postscaler (`WDTPS`, cw1 bit 3-0) are both set to 128, resulting in about 512ms timeout
+* Started just before the main loop, after HW init
+* Prescaler (`FWPSA` , config word 1 bit 4) and postscaler (`WDTPS`, cw1 bit 3-0) are both set to 128, resulting in about 512ms timeout
 * After HW initialization, RCONbits.WDTO is checked. If set, all UARTS send out “---Reset by WDT---\n”
 
 ### Timer 1
@@ -89,12 +89,18 @@ The two microcontrollers can communicate with each other. To do so, they send a 
 
 ### Currently supported commands
 
-Commands do not have to end in \n or \r.
+Commands do not have to end in \n or \r (both are ignored).
 
 |Command   |Returns|Explanation|Flag|
 |:--------:|-------|-----------|----|
-|`?vitals*`|tt2320th58\n bt2234bh24\n|local and remote temp/RH: (position:t for top, b for bottom)(t for temp)(temperature\*100)(position:t for top, b for bottom)(h for relative humidity)(relative humidity in %). Example means 23,20 deg and 58%RH for top, 22,34/24 for bottom.|`FlagVitalsRequested`|
+|`?vitals*`|tt2320th58\n bt2234bh24\n|local and remote temp/RH: (position:t for top, b for bottom)(t for temp)(temperature\*100)(position:t for top, b for bottom)(h for relative humidity)(relative humidity in %). Example means 23,20 deg and 58%RH for top, 22,34/24 for bottom.|`FlagVitalsRequested` (1 if req locally, 2 if from mux)|
 |`?version*`|FW Version: v0.4\n|Local firmware version|`FlagVersionRequested`|
+|`?imu*`|p:xxx.yy\nr:xxx.yy\nh:xxx/n|converted pitch/roll/heading (from top) in degrees (see remark)|`FlagImuRequested` (1 if req locally, 2 if from mux)|
+
+(remark) after receiving `?imu*` on aux, the local station is set to top. If so, it sends the local p/r/h. If not top, it requests the remote station for the data. 
+After receiving that request from the mux, it knows the remote station was not configured as top, so then checks if itself is set to top. If it is top, it returns the data, otherwise it returns --- as values.
+
+
 
 * TODO: remote FW version?
 
@@ -105,7 +111,7 @@ Commands do not have to end in \n or \r.
 1. Waiting for an exclamation mark (0x21) or question mark (0x3F) as a message start identifier.
 2. It then regards the following characters as part of the incoming command and stores them in `AuxRx` and waits for asterisk (0x2A) to close the command.
 3. If the length of the command exeeds `COMMANDMAXLENGTH` (50 bytes in v0.4), the buffer is emptied and goes back to step one.
-4. After rx of * (0x2A), the message buffer `AuxRx` is compared to know commands and the corresponding flag is set. If the command is unknown, the machine goes back to step 1.
+4. After rx of * (0x2A), the message buffer `AuxRx` is compared to know commands (see above) and the corresponding flag is set. If the command is unknown, the machine goes back to step 1.
 
 At this point, the `main()` loop takes over and handles the request and unsets the flag afterwards.
 

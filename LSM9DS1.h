@@ -426,38 +426,8 @@ uint8_t calcHeading(imu_t * imu, int16_t * pHeading);
 //////////////////////
 void LSM9DS1_constrainScales(imu_t * imu);
 
-
-
-/////////////////////
-//// SPI Functions //
-/////////////////////
-//// initSPI() -- Initialize the SPI hardware.
-//// This function will setup all SPI pins and related hardware.
-//void LSM9DS1_initSPI();
-//
-// SPIwriteByte() -- Write a byte out of SPI to a register in the device
-// Input:
-//	- csPin = The chip select pin of the slave device.
-//	- subAddress = The register to be written to.
-//	- data = Byte to be written to the register.
 void LSM9DS1_I2CwriteByte(imu_t * imu,uint8_t address, uint8_t subAddress, uint8_t data);
-
-// SPIreadByte() -- Read a single byte from a register over SPI.
-// Input:
-//	- csPin = The chip select pin of the slave device.
-//	- subAddress = The register to be read from.
-// Output:
-//	- The byte read from the requested address.
 uint8_t LSM9DS1_I2CreadByte(imu_t * imu,uint8_t address, uint8_t subAddress);
-
-// SPIreadBytes() -- Read a series of bytes, starting at a register via SPI
-// Input:
-//	- csPin = The chip select pin of a slave device.
-//	- subAddress = The register to begin reading.
-// 	- * dest = Pointer to an array where we'll store the readings.
-//	- count = Number of registers to be read.
-// Output: No value is returned by the function, but the registers read are
-// 		all stored in the *dest array given.
 void LSM9DS1_I2CreadBytes(imu_t * imu, uint8_t address, uint8_t subAddress,
 						uint8_t * dest, uint8_t count);
 #endif // SFE_LSM9DS1_H //
