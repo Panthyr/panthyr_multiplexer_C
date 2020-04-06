@@ -8,6 +8,7 @@
 #ifndef UTILS_H
 #define	UTILS_H
 
+#undef _ISR
 #define __ISR __attribute__((interrupt, no_auto_psv))
 
 // low level, used in intToStr
