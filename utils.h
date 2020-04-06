@@ -15,7 +15,7 @@ void reverse(char* str, int len);
 // low level, used in ftoa
 int intToStr(uint16_t x, char str[], int d, uint8_t neg);
 // high level function
-void ftoa(float n, char* res, uint8_t afterpoint);
+void ftoa(float n, char* buf, uint8_t afterpoint);
 
 
 #endif	/* UTILS_H */

@@ -21,8 +21,6 @@ void __ISR _MathError(void)
     while(1);  // hold here so we can read UART messages
 }
 
-
-
 // Reverses a string 'str' of length 'len'
 // for use with ftoa
 void reverse(char* str, int len) 
@@ -70,7 +68,7 @@ int intToStr(uint16_t value, char str[], int minChar, uint8_t neg)
   
 // Converts a floating-point/double number to a string.
 // The high level function
-void ftoa(float number, char* res, uint8_t afterpoint) 
+void ftoa(float number, char* buf, uint8_t afterpoint) 
 {   
     uint8_t neg = 0;
     
@@ -84,15 +82,15 @@ void ftoa(float number, char* res, uint8_t afterpoint)
       // Extract floating part 
     float fpart = number - (float)ipart; 
       // convert integer part to string 
-    int i = intToStr(ipart, res, 1, neg); 
+    int i = intToStr(ipart, buf, 1, neg); 
       // check for display option after point 
     if (afterpoint != 0) { 
-        res[i] = '.'; // add dot 
+        buf[i] = '.'; // add dot 
   
         // Get the value of fraction part upto given no. 
         // of points after dot. The third parameter  
         // is needed to handle cases like 233.007 
         fpart = fpart * pow(10, afterpoint); 
-        intToStr((int)fpart, res + i + 1, afterpoint, 0); 
+        intToStr((int)fpart, buf + i + 1, afterpoint, 0); 
     } 
 } 
