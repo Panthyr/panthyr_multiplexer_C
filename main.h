@@ -19,8 +19,38 @@
 #include <xc.h> // include processor files - each processor file is guarded.  
 #include <stdint.h>
 #include "LSM9DS1.h"
+#define BUFFLENGTH 1024
 
 const char FW_VERSION[5] = "v0.4";
+
+struct CircBuf { // incoming data buffers
+    volatile uint8_t Buff[BUFFLENGTH];
+    volatile uint16_t WritePos; // Write position
+    volatile uint16_t ReadPos; // Read position
+    volatile uint16_t FillLength; // Number of unprocessed chars in array
+    volatile bool DoMux; // Flag if there's buffered RX from Ux
+} RadBuf, IrrBuf = {
+    {0, 0, 0, 0, 0}
+};
+
+struct MuxRxBuff {
+    volatile uint8_t CircBuff[BUFFLENGTH]; // Circular buffer for UART3
+    volatile uint16_t WritePos; // Write position
+    volatile uint16_t MsgStart; // Read position
+    volatile uint16_t MsgLength; // Number of unprocessed chars in array
+    volatile uint8_t TargetPort; // Where should the message go to?
+    volatile uint16_t ExpectedChr; // Counter for number of expected chars
+    volatile uint8_t Preamble; // Counter for preamble
+} MuxRxBuff = {
+    {0}, 0, 0, 0, 0, 0, 0
+};
+
+struct DemuxBuff { // describes the data to be demuxed in the MuxRxBuff
+    volatile uint8_t TargetPort; // Where this message should go
+    volatile uint16_t MsgLength; // Number of received chars in message
+    // next var: position in the MuxRxBuff where the message starts
+    volatile uint16_t MsgStartPos; 
+} DeMuxBuffDescr = {0, 0, 0};
 
 /* METHODS */
 void muxRad(void);
@@ -39,11 +69,13 @@ void formatVitals(char PrintoutTemp[], char PrintoutHum[]);
 // if flagImuRequested==1 and not top -> send request over mux
 // if flagImuRequested==2 and I'm top -> send p/r/h data over mux
 // if flagImuRequested==2 and not top -> send p/r/h with --- as value
-uint8_t getImu (void);
+void getImu (void);
+void fillImuData (char * imuData);
 void outputMuxedMsg(uint8_t TargetPort, uint16_t MsgLength, uint16_t MsgStartPos);
 void processMuxedCmd(uint16_t MsgLength, uint16_t MsgStartPos);
 void muxSendCommand();
-
+// printIMUData() - gets, formats and prints out data from IMU
+// Mostly for debugging and testing
 uint8_t printIMUData(uint8_t port, 
                         imu_t * imu, 
                         bool printGyro, 
@@ -55,9 +87,7 @@ uint8_t printIMUData(uint8_t port,
 uint8_t printGyro(uint8_t serialPort, imu_t * imu);
 uint8_t printAcc(uint8_t serialPort, imu_t * imu);
 uint8_t printMag(uint8_t serialPort, imu_t * imu);
-uint8_t calcPitchRoll (imu_t * imu, float * pitch, float * roll);
 uint8_t printPitchRoll(uint8_t serialPort, float * pPitch, float * pRoll);
-uint8_t calcHeading(imu_t * imu, int16_t * pHeading);
 uint8_t printHeading(uint8_t serialPort, int16_t * pHeading);
 
 /* Specify an extension for GCC based compilers */

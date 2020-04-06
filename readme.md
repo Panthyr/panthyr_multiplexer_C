@@ -94,11 +94,12 @@ Commands do not have to end in \n or \r (both are ignored).
 |Command   |Returns|Explanation|Flag|
 |:--------:|-------|-----------|----|
 |`?vitals*`|tt2320th58\n bt2234bh24\n|local and remote temp/RH: (position:t for top, b for bottom)(t for temp)(temperature\*100)(position:t for top, b for bottom)(h for relative humidity)(relative humidity in %). Example means 23,20 deg and 58%RH for top, 22,34/24 for bottom.|`FlagVitalsRequested` (1 if req locally, 2 if from mux)|
-|`?version*`|FW Version: v0.4\n|Local firmware version|`FlagVersionRequested`|
-|`?imu*`|p:xxx.yy\nr:xxx.yy\nh:xxx/n|converted pitch/roll/heading (from top) in degrees (see remark)|`FlagImuRequested` (1 if req locally, 2 if from mux)|
+|`?ver*`|FW Version: v0.4\n|Local firmware version|`FlagVersionRequested`|
+|`?imu*`|: p:(-)xxx.yy\n, r:(-)xxx.yy\n, h:xxx/n(remark1)|converted pitch/roll/heading (from top) in degrees (remark2)|`FlagImuRequested` (1 if req locally, 2 if from mux)|
 
-(remark) after receiving `?imu*` on aux, the local station is set to top. If so, it sends the local p/r/h. If not top, it requests the remote station for the data. 
-After receiving that request from the mux, it knows the remote station was not configured as top, so then checks if itself is set to top. If it is top, it returns the data, otherwise it returns --- as values.
+(remark1) leading zeros are not printed
+(remark2) after receiving `?imu*` on aux, the local station checks if it is set to top. If so, it sends the local p/r/h. If not top, it requests the remote station for the data.
+After receiving `?imu*` from the mux, it knows the remote station was not configured as top, so then checks if itself is set to top. If it is top, it returns the data, otherwise it returns --- as values.
 
 
 
@@ -106,7 +107,7 @@ After receiving that request from the mux, it knows the remote station was not c
 
 ### Handling of incoming commands (from AUX/UART4)
 
-`_U4RXInterrupt` works as a small state machine:
+`_U4RXInterrupt` works as a simple state machine:
 
 1. Waiting for an exclamation mark (0x21) or question mark (0x3F) as a message start identifier.
 2. It then regards the following characters as part of the incoming command and stores them in `AuxRx` and waits for asterisk (0x2A) to close the command.

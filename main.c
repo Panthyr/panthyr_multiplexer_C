@@ -33,37 +33,7 @@
 // Variables
 
 /* Variables/constants for the UARTS */
-#define BUFFLENGTH 1024
 #define COMMANDMAXLENGTH 50
-
-struct CircBuf { // incoming data buffers
-    volatile uint8_t Buff[BUFFLENGTH];
-    volatile uint16_t WritePos; // Write position
-    volatile uint16_t ReadPos; // Read position
-    volatile uint16_t FillLength; // Number of unprocessed chars in array
-    volatile bool DoMux; // Flag if there's buffered RX from Ux
-} RadBuf, IrrBuf = {
-    {0, 0, 0, 0, 0}
-};
-
-struct MuxRxBuff {
-    volatile uint8_t CircBuff[BUFFLENGTH]; // Circular buffer for UART3
-    volatile uint16_t WritePos; // Write position
-    volatile uint16_t MsgStart; // Read position
-    volatile uint16_t MsgLength; // Number of unprocessed chars in array
-    volatile uint8_t TargetPort; // Where should the message go to?
-    volatile uint16_t ExpectedChr; // Counter for number of expected chars
-    volatile uint8_t Preamble; // Counter for preamble
-} MuxRxBuff = {
-    {0}, 0, 0, 0, 0, 0, 0
-};
-
-struct DemuxBuff { // describes the data to be demuxed in the MuxRxBuff
-    volatile uint8_t TargetPort; // Where this message should go
-    volatile uint16_t MsgLength; // Number of received chars in message
-    // next var: position in the MuxRxBuff where the message starts
-    volatile uint16_t MsgStartPos; 
-} DeMuxBuffDescr = {0, 0, 0};
 
 char AuxRx[COMMANDMAXLENGTH] = {0}; // Buffer for the received commands on UART4
 volatile uint8_t AuxRxPos = 0; // Write position in the buffer
@@ -78,7 +48,7 @@ volatile bool FlagWaitingForRemoteVitals = 0;
 bool FlagTxCMDMux = 0; // to flag that we need to send a command over the mux
 volatile uint8_t FlagImuRequested = 0;
 
-// WORKING VARIABLES
+/* WORKING VARIABLES */
 int16_t SHT31_Temp = 0;
 uint8_t SHT31_RH = 0;
 // buffer for command that needs to be send to remote
@@ -96,6 +66,10 @@ bool CountUp = 1; // For the PWM of the heartbeat led
 // Used to light orange led for 2.5s after boot (400 half PWM 0.01s cycles)
 uint16_t bootLed = 500; 
 // Decremented each half PWM duty cycle until zero
+
+/* IMU structs */
+imu_config_t imuconfig;
+imu_t imu;
 
 void __ISR _U1RXInterrupt(void)
 {
@@ -427,11 +401,6 @@ void sendVersion(void)
 
 uint8_t getVitals(void)
 {
-    // flagVitalsRequested can be 1 (requested locally) 
-    // or 2(requested remotely over mux)
-    // get local temp/rh, send them out of the mux (if requested remotely) or 
-    // uart4 (if requested locally)
-    // if requested locally, send request over mux and set flag to wait for it
     char PrintoutTemp[13] = {};
     char PrintoutHum[6] = {};
 
@@ -475,6 +444,70 @@ void formatVitals(char PrintoutTemp[], char PrintoutHum[])
     strcat(PrintoutTemp, PrintoutHum);
 }
 
+void getImu (void)
+{   
+    char imuData[26] = {0};
+    if (ImTop){
+        // we need to get the imu data, regardless of where the req comes from
+        fillImuData(imuData);
+    }
+    if (FlagImuRequested == 1 && ImTop){
+        Uart_SendString(4,imuData);
+        // finished here
+        return;
+    }
+    if (FlagImuRequested == 1 && ImBottom){
+        //send imuData request to remote
+        
+        return;
+    }
+    if (FlagImuRequested == 2){
+        // request comes from other station and that one is bottom
+        if (ImBottom){
+            // bad situation, both are set to bottom
+            // prepare string with blank data
+            strcpy(imuData, "p:---\nr:---\nh:---\n");
+        }
+        // if ImTop, imuData has already been populated
+        // queue data to send to mux
+        char TempReply[15] = "r";
+        strcat(TempReply, imuData);
+        strcat(TempReply, "*");
+        memcpy(CmdToMux, TempReply, sizeof (TempReply));
+        FlagTxCMDMux = 1;
+        return;
+    }
+}
+
+void fillImuData (char * imuData){
+        // will store the message in format p:xxx.yy\nr:xxx.yy\nh:xxx/n
+        float PitchValue, RollValue = 0;
+        float * pRollValue = &RollValue;
+        float * pPitchValue = &PitchValue;
+        int16_t Heading = 999;
+        int16_t * pHeading = &Heading;
+        calcPitchRoll (&imu, pPitchValue, pRollValue);
+        calcHeading(&imu, pHeading);
+        // pitch
+        char temp[8] = {0};
+        strcat(imuData,"p:");
+        ftoa(PitchValue, temp, 2);
+        strcat(imuData, temp);
+        strcat(imuData,"\n");
+        // roll
+        temp[0] = 0;
+        strcat(imuData,"r:");
+        ftoa(RollValue, temp, 2);
+        strcat(imuData, temp);
+        strcat(imuData,"\n");
+        // heading
+        temp[0] = 0;
+        strcat(imuData,"h:");
+        itoa(temp,Heading,10);
+        strcat(imuData, temp);
+        strcat(imuData,"\n");
+}
+
 void outputMuxedMsg(uint8_t TargetPort, uint16_t MsgLength, uint16_t MsgStartPos)
 {
     while (MsgLength-- > 0) {
@@ -513,6 +546,9 @@ void processMuxedCmd(uint16_t MsgLength, uint16_t MsgStartPos)
 
     if (strcmp(ProcCommand, "?vitals*") == 0) {
         FlagVitalsRequested = 2;
+    }
+    if (strcmp(ProcCommand, "?imu*") == 0) {
+        FlagImuRequested = 2;
     }
 }
 
@@ -673,24 +709,23 @@ int main(void)
     LED_Boot_SetHigh(); // After startup, light red led for 1 second (100 PWM cycles)
     initHardware(); // Init all the hardware components and setup pins
     Uart_SendStringNL(4, "HW init done.");
-    struct imu_config_s imuconfig;
+    
     imuconfig.calibrate = 1;
     imuconfig.enable_accel = 1;
     imuconfig.enable_gyro = 1;
     imuconfig.enable_mag = 1;
     imuconfig.low_power_mode = 0;
-    struct imu_s imu;
-
+    
     LSM9DS1_init(&imu, &imuconfig);
     Uart_SendStringNL(4, "IMU init done.");
-
+    FlagImuRequested = 1;
     StartWDT();
     
     /*Main loop*/
     while (1) {
         ClrWdt(); // kick wdt
         
-        printIMUData(4,&imu,1,1,1,1,1,0);
+//        printIMUData(4,&imu,1,1,1,1,1,0);
         
 
         // check if request have been received over mux or aux serial
@@ -702,6 +737,11 @@ int main(void)
         if (FlagVersionRequested) {
             sendVersion();
             FlagVersionRequested = 0;
+        }
+        // check if imu data from top has been requested
+        if (FlagImuRequested > 0){
+            getImu();
+            FlagImuRequested = 0;
         }
 
         if (RadBuf.DoMux) { // send data from Radiance over mux
