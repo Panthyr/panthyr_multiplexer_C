@@ -90,18 +90,19 @@ The two microcontrollers can communicate with each other. To do so, they send a 
 ### Currently supported commands
 
 Commands do not have to end in \n or \r (both are ignored).
+These can come in through the AUX (uart4) port, or from the MUX (uart3) if originating from the remote station.
+Flags can be set to 1 (command received from local AUX port) or 2 (received from the remote station).
 
 |Command   |Returns|Explanation|Flag|
 |:--------:|-------|-----------|----|
-|`?vitals*`|tt2320th58\n bt2234bh24\n|local and remote temp/RH: (position:t for top, b for bottom)(t for temp)(temperature\*100)(position:t for top, b for bottom)(h for relative humidity)(relative humidity in %). Example means 23,20 deg and 58%RH for top, 22,34/24 for bottom.|`FlagVitalsRequested` (1 if req locally, 2 if from mux)|
+|`?vitals*`|tt2320th58\n bt2234bh24\n|local and remote temp/RH: (position:t for top, b for bottom)(t for temp)(temperature\*100)(position:t for top, b for bottom)(h for relative humidity)(relative humidity in %). Example means 23,20 deg and 58%RH for top, 22,34/24 for bottom.|`FlagVitalsRequested`|
 |`?ver*`|FW Version: v0.4\n|Local firmware version|`FlagVersionRequested`|
-|`?imu*`|: p:(-)xxx.yy\n, r:(-)xxx.yy\n, h:xxx/n(remark1)|converted pitch/roll/heading (from top) in degrees (remark2)|`FlagImuRequested` (1 if req locally, 2 if from mux)|
+|`?imu*`| p:(-)xxx.yy\n, r:(-)xxx.yy\n, h:xxx/n(remark1)|converted pitch/roll/heading (from top) in degrees (remark2)|`FlagImuRequested`|
+|`!calibimu*`|"OK"|Re-inits IMU with calibration, referencing p/r|`FlagImuCalib`|
 
 (remark1) leading zeros are not printed
 (remark2) after receiving `?imu*` on aux, the local station checks if it is set to top. If so, it sends the local p/r/h. If not top, it requests the remote station for the data.
 After receiving `?imu*` from the mux, it knows the remote station was not configured as top, so then checks if itself is set to top. If it is top, it returns the data, otherwise it returns --- as values.
-
-
 
 * TODO: remote FW version?
 
@@ -120,13 +121,29 @@ If the command requires communication with the remote controller, the message is
 
 ### Handling of incoming commands (from MUX/UART3)
 
-`processMuxedCmd` handles incoming commands:
+`processMuxedCmd` handles incoming (from mux) commands:
 
 * It checks the validity of the message format.
-* If the message is a response (starts with "r"), it checks to see if there are any "waiting for reply"flags set. If one is set, it handles the message (output on UART4/AUX in case of `?vitals*`) and clears the flag.
+* If  it is a known command, it sets the corresponding flag for the main loop to handle.
+* If the message is a response to a request sent by itself (starts with "r"), it checks to see if there are any "waiting for reply"flags set. If one is set, it handles the message (output on UART4/AUX in case of `?vitals*`) and clears the flag.
 * A request for vitals (`?vitals*`) sets `FlagVitalsRequested = 2`. Value 2 of this variable tells the handling function that the information is request by the remote and should be sent over the mux.
 
 ### Handling of outgoing commands (over MUX/UART3 to remote)
 
 * A function that has to send a command to the remote, sets the `FlagTxCMDMux` flag and stores the command in the `CmdToMux` variable.
 * When the `main()` loop finds the `FlagTxCMDMux`set, it calls the `muxSendCommand` function to handle this.
+
+### Short breakdown
+
+Send a message to remote:
+
+* `memcpy` command to `CmdToMux`
+* Set flag `FlagTxCMDMux`
+
+Receive message from remote:
+
+* If `FlagMuxDoDemux` is set (by `U3RXInterrupt`), main loop checks target port
+* If target port == 0, `ProcessMuxedCmd` is called
+* `ProcessMuxedCmd` checks if it is a reply (starting with r)
+* If it is a reply, checks if any `FlagWaitingForXXX` are set. If none, discards message.
+* If not a reply, checks against known commands and sets corresponding flag to 2 (received from remote)
