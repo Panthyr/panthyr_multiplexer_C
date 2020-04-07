@@ -35,11 +35,6 @@ void reverse(char* str, int len)
     } 
 } 
   
-// Converts a given integer x to string str[].  
-// d is the number of digits required in the output.  
-// If d is more than the number of digits in x,  
-// then 0s are added at the beginning. 
-// for use with ftoa
 int intToStr(uint16_t value, char str[], int minChar, uint8_t neg) 
 { 
     int pos = 0;  // start at beginning
@@ -52,12 +47,13 @@ int intToStr(uint16_t value, char str[], int minChar, uint8_t neg)
         str[pos++] = (value % 10) + 0x30; // '0' character used as offset to convert from int to ANSII
         value = value / 10; 
     };
+    // add sign to end (will be beginning) of string
     if (neg){
         str[pos++]='-';
     }
   
     // If number of digits required is more, then 
-    // add 0s at the beginning 
+    // add 0s at the beginning (now end)
     while (pos < minChar) 
         str[pos++] = '0'; 
   
@@ -68,29 +64,30 @@ int intToStr(uint16_t value, char str[], int minChar, uint8_t neg)
   
 // Converts a floating-point/double number to a string.
 // The high level function
-void ftoa(float number, char* buf, uint8_t afterpoint) 
+uint16_t ftoa(float floatToConvert, char* buf, uint8_t afterpoint) 
 {   
     uint8_t neg = 0;
     
     // check if negative number (which wasn't handled to well if between 0 and -1)
-    if (number < 0){
+    if (floatToConvert < 0){
         neg = 1;
-        number = -number;
+        floatToConvert = -floatToConvert;
     }
     // Extract integer part 
-    int ipart = (int)number; 
+    int integerPart = (int)floatToConvert; 
       // Extract floating part 
-    float fpart = number - (float)ipart; 
+    float floatRemainder = floatToConvert - (float)integerPart; 
       // convert integer part to string 
-    int i = intToStr(ipart, buf, 1, neg); 
+    uint16_t charsUsed = intToStr(integerPart, buf, 1, neg); 
       // check for display option after point 
     if (afterpoint != 0) { 
-        buf[i] = '.'; // add dot 
+        buf[charsUsed] = '.'; // add dot 
   
         // Get the value of fraction part upto given no. 
         // of points after dot. The third parameter  
         // is needed to handle cases like 233.007 
-        fpart = fpart * pow(10, afterpoint); 
-        intToStr((int)fpart, buf + i + 1, afterpoint, 0); 
+        floatRemainder = floatRemainder * pow(10, afterpoint);
+        charsUsed += intToStr((int)floatRemainder, buf + charsUsed + 1, afterpoint, 0);
     } 
+    return charsUsed;
 } 
