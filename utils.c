@@ -1,6 +1,7 @@
 #include <math.h>
 #include "uart.h"
 #include "utils.h"
+#include <string.h>
   
 
 void __ISR _DefaultInterrupt(void)
@@ -91,3 +92,31 @@ uint16_t ftoa(float floatToConvert, char* buf, uint8_t afterpoint)
     } 
     return charsUsed;
 } 
+
+uint16_t fillString(char * source, uint16_t targetLength, char filler, int8_t leftOrRight)
+{
+    uint16_t sourceLength = strlen(source) + 1; // strlen returns length excluding null terminator
+    
+    if (sourceLength > targetLength){ // source length is already longer than requested
+        return 0;
+    }
+    
+    uint16_t reqFiller = targetLength - sourceLength;
+    
+    if (leftOrRight == -1){
+        // left-justified: fill with filler starting at null terminator
+        memset(&source[sourceLength -1], filler, reqFiller);
+        source[targetLength - 1] = 0x00;
+        return 1;
+    }
+    
+    if (leftOrRight == 1){
+        // right-justified, first move current string to end, then fill beginning
+        strcpy(&source[reqFiller], source);
+        memset(source, filler, reqFiller -1);
+        filler +=1;
+        return 1;
+    }
+    
+    return 0;
+}

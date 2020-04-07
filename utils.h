@@ -27,7 +27,18 @@ int intToStr(uint16_t x, char str[], int d, uint8_t neg);
 // Converts integerPart with sign to string, gets number of characters as return
 // Returns number of chars used (including zero termination)
 uint16_t ftoa(float floatToConvert, char* buf, uint8_t afterpoint);
-
+// FillString(): takes a (null-terminated) string and 
+// lengthens it in-place to a given length with filler.
+// In-place result is null-terminated.
+// String gets right-justified if leftOrRight == 1, left-justified if -1
+// source should be big enough to contain requested length
+// First checks length of current string, returns 0 if longer than targetLength
+// If right-justified: moves current string to end, then fills rest with filler
+// If left-justified: adds filler char to (length -1) and ends with null-terminator
+// Returns: 
+// 1 if succesfull
+// 0 if input string is longer than targetLength
+uint16_t fillString(char * source, uint16_t targetLength, char filler, int8_t leftOrRight);
 
 #endif	/* UTILS_H */
 
