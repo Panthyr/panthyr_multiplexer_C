@@ -55,7 +55,7 @@ struct DemuxBuff { // describes the data to be demuxed in the MuxRxBuff
 /* METHODS */
 void muxRad(void);
 void muxIrr(void);
-void sendVersion(void);
+void getVersion(void);
 // flagVitalsRequested can be 1 (requested locally) 
 // or 2(requested remotely over mux)
 // get local temp/rh, send them out of the mux (if requested remotely) or 
@@ -72,6 +72,13 @@ void formatVitals(char PrintoutTemp[], char PrintoutHum[]);
 void getImu (void);
 void fillImuData (char * imuData);
 void outputMuxedMsg(uint8_t TargetPort, uint16_t MsgLength, uint16_t MsgStartPos);
+// processMuxedCmd() processMuxedCmd handles incoming (from mux) commands:
+// - It checks the validity of the message format.
+// - If  it is a known command, sets the corresponding flag.
+// - If the message is a response to a request sent by itself (starts with "r"), 
+// it checks to see if there are any "waiting for reply"flags set. 
+// If one is set, it handles the message (output on UART4/AUX in case of ?vitals*) 
+// and clears the flag.
 void processMuxedCmd(uint16_t MsgLength, uint16_t MsgStartPos);
 void muxSendCommand();
 // printIMUData() - gets, formats and prints out data from IMU

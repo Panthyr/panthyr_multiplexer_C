@@ -55,7 +55,6 @@ typedef enum mag_scale_e
 // gyro_odr defines all possible data rate/bandwidth combos of the gyro:
 typedef enum gyro_odr_e
 {
-	//! TODO
 	G_ODR_PD,	// Power down (0)
 	G_ODR_149,	// 14.9 Hz (1)
 	G_ODR_595,	// 59.5 Hz (2)

@@ -35,7 +35,7 @@
 /* Variables/constants for the UARTS */
 #define COMMANDMAXLENGTH 50
 
-char AuxRx[COMMANDMAXLENGTH] = {0}; // Buffer for the received commands on UART4
+volatile char AuxRx[COMMANDMAXLENGTH] = {0}; // Buffer for the received commands on UART4
 volatile uint8_t AuxRxPos = 0; // Write position in the buffer
 
 /* FLAGS */
@@ -43,10 +43,11 @@ volatile bool FlagMuxDoDemux = 0; // Flag if there's buffered RX from U3
 // next one is 1 if requested from aux serial, 2 if through mux
 volatile uint8_t FlagVitalsRequested = 0; 
 volatile uint8_t FlagVersionRequested = 0; // send version info to aux
+// next one is 1 if requested from aux serial, 2 if through mux
+volatile uint8_t FlagImuRequested = 0;
 // next variable to identify that we've requested data from "the other side"
 volatile bool FlagWaitingForRemoteVitals = 0; 
 bool FlagTxCMDMux = 0; // to flag that we need to send a command over the mux
-volatile uint8_t FlagImuRequested = 0;
 
 /* WORKING VARIABLES */
 int16_t SHT31_Temp = 0;
@@ -166,12 +167,12 @@ void __ISR _U3RXInterrupt(void)
         } else { // complete message should have been received
             if (x == 13) { // check for CR
                 // send data out if correctly terminated
-                FlagMuxDoDemux = 1;
                 MuxRxBuff.Preamble = 0;
                 // set variables to describe the message to be demuxed
                 DeMuxBuffDescr.TargetPort = MuxRxBuff.TargetPort;
                 DeMuxBuffDescr.MsgLength = MuxRxBuff.MsgLength;
                 DeMuxBuffDescr.MsgStartPos = MuxRxBuff.MsgStart;
+                FlagMuxDoDemux = 1;
             } else { // no CR when expected, dump message
                 // or throw away and start over
                 MuxRxBuff.Preamble = 0;
@@ -230,7 +231,6 @@ void __ISR _U4RXInterrupt(void)
         if (strcmp(AuxRx, "?vitals*") == 0) {
             FlagVitalsRequested = 1;
         }
-
         if (strcmp(AuxRx, "?ver*") == 0) {
             FlagVersionRequested = 1;
         }
@@ -309,7 +309,7 @@ void __ISR _T1Interrupt()
 void __ISR _T4Interrupt()
 {
     /* ISR for TIMER 4 
-       Generate clock to send data to mux every 50ms
+       Generates clock to send data to mux every 50ms
      */
     IFS1bits.T4IF = false; //clear interrupt flag
     TMR4 = 0x0000;
@@ -393,10 +393,11 @@ void muxIrr(void)
     Uart_SendChar(3, 13); // Send CR
 }
 
-void sendVersion(void)
+void getVersion(void)
 {
     Uart_SendString(4, "FW Version: ");
     Uart_SendStringNL(4, FW_VERSION); // end with newline
+    // TODO: remote version
 }
 
 uint8_t getVitals(void)
@@ -480,7 +481,8 @@ void getImu (void)
 }
 
 void fillImuData (char * imuData){
-        // will store the message in format p:xxx.yy\nr:xxx.yy\nh:xxx/n
+        // will store the message in format 
+        // "p:xxx.yy\nr:xxx.yy\nh:xxx/n"
         float PitchValue, RollValue = 0;
         float * pRollValue = &RollValue;
         float * pPitchValue = &PitchValue;
@@ -542,8 +544,11 @@ void processMuxedCmd(uint16_t MsgLength, uint16_t MsgStartPos)
             Uart_SendChar(4, '\n');
             FlagWaitingForRemoteVitals = 0;
         }
+        // add possible FlagWaitingForXXX flags
+        return;
     }
-
+    
+    // check for known commands
     if (strcmp(ProcCommand, "?vitals*") == 0) {
         FlagVitalsRequested = 2;
     }
@@ -718,16 +723,12 @@ int main(void)
     
     LSM9DS1_init(&imu, &imuconfig);
     Uart_SendStringNL(4, "IMU init done.");
-    FlagImuRequested = 1;
     StartWDT();
     
     /*Main loop*/
     while (1) {
         ClrWdt(); // kick wdt
         
-//        printIMUData(4,&imu,1,1,1,1,1,0);
-        
-
         // check if request have been received over mux or aux serial
         if (FlagVitalsRequested > 0) {
             getVitals();
@@ -735,7 +736,7 @@ int main(void)
         }
         // check if version information has been requested
         if (FlagVersionRequested) {
-            sendVersion();
+            getVersion();
             FlagVersionRequested = 0;
         }
         // check if imu data from top has been requested
@@ -776,7 +777,7 @@ int main(void)
                                 DeMuxBuffDescr.MsgStartPos);
             }
         }
-        __delay_ms(75);
+        __delay_ms(50);
     }
     return 0;
 }
