@@ -60,7 +60,7 @@ int intToStr(uint16_t value, char str[], int minChar, uint8_t neg)
   
     reverse(str, pos); 
     str[pos] = '\0'; 
-    return pos; 
+    return pos + 1; 
 } 
   
 // Converts a floating-point/double number to a string.
@@ -69,9 +69,10 @@ uint16_t ftoa(float floatToConvert, char* buf, uint8_t afterpoint)
 {   
     uint8_t neg = 0;
     
-    // check if negative number (which wasn't handled to well if between 0 and -1)
+    // check if negative number
     if (floatToConvert < 0){
         neg = 1;
+        // continue with absolute value for further calculations
         floatToConvert = -floatToConvert;
     }
     // Extract integer part 
@@ -82,18 +83,21 @@ uint16_t ftoa(float floatToConvert, char* buf, uint8_t afterpoint)
     uint16_t charsUsed = intToStr(integerPart, buf, 1, neg); 
       // check for display option after point 
     if (afterpoint != 0) { 
-        buf[charsUsed] = '.'; // add dot 
+        buf[charsUsed++- 1] = '.'; // add dot 
   
         // Get the value of fraction part upto given no. 
         // of points after dot. The third parameter  
         // is needed to handle cases like 233.007 
         floatRemainder = floatRemainder * pow(10, afterpoint);
-        charsUsed += intToStr((int)floatRemainder, buf + charsUsed + 1, afterpoint, 0);
+        charsUsed += intToStr((int)floatRemainder, buf + charsUsed -1, afterpoint, 0);
     } 
-    return charsUsed;
+    return charsUsed -1;
 } 
 
-uint16_t fillString(char * source, uint16_t targetLength, char filler, int8_t leftOrRight)
+uint16_t fillString(char * source, 
+                    uint16_t targetLength, 
+                    char filler, 
+                    int8_t leftOrRight)
 {
     uint16_t sourceLength = strlen(source) + 1; // strlen returns length excluding null terminator
     
@@ -101,7 +105,8 @@ uint16_t fillString(char * source, uint16_t targetLength, char filler, int8_t le
         return 0;
     }
     
-    uint16_t reqFiller = targetLength - sourceLength;
+    uint16_t reqFiller = 0;
+    reqFiller = targetLength - sourceLength;
     
     if (leftOrRight == -1){
         // left-justified: fill with filler starting at null terminator
@@ -112,11 +117,63 @@ uint16_t fillString(char * source, uint16_t targetLength, char filler, int8_t le
     
     if (leftOrRight == 1){
         // right-justified, first move current string to end, then fill beginning
-        strcpy(&source[reqFiller], source);
-        memset(source, filler, reqFiller -1);
-        filler +=1;
+        
+//        strcpy(&source[reqFiller], source); 
+        // Can't use strcpy here. source and target might overlap.
+        // strcpy would then first overwrite the null terminator,
+        // and never see an end to the source (writing off into unknown places of memory)
+        memmove(&source[reqFiller], source, sourceLength);
+        // Overwrite the left blanks with the filler
+        memset(source, filler, reqFiller);
         return 1;
     }
     
     return 0;
+}
+
+uint8_t ftoaFix(float floatToConvert, 
+                char* buf, 
+                uint8_t afterpoint, 
+                uint16_t targetLength, 
+                char filler, 
+                int8_t leftOrRight)
+{
+    uint16_t resultLength = ftoa(floatToConvert, buf, afterpoint);
+    if (resultLength > targetLength){
+        // shouldn't happen, would mean we wrote to unknown memory :(
+        return 0;
+    }
+    if (resultLength == targetLength){
+        // no need to justify, lengths match
+        return 1;
+    }
+    // result is shorten than wanted, so fill to length
+    fillString(buf, targetLength, filler, leftOrRight);
+    return 1;
+}
+
+uint8_t ftoaFixR(float floatToConvert, 
+                char* buf, 
+                uint8_t afterpoint, 
+                uint16_t targetLength)
+{
+    return ftoaFix(floatToConvert,
+                    buf,
+                    afterpoint,
+                    targetLength,
+                    0x20,
+                    1);
+}
+
+uint8_t ftoaFixL(float floatToConvert, 
+                char* buf, 
+                uint8_t afterpoint, 
+                uint16_t targetLength)
+{
+    return ftoaFix(floatToConvert,
+                    buf,
+                    afterpoint,
+                    targetLength,
+                    0x20,
+                    -1);
 }
