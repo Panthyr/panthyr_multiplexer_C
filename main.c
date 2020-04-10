@@ -212,13 +212,21 @@ void __ISR _U4RXInterrupt(void)
     switch (x) {
     case '!': // beginning of new command
         // start new receive operation, clear previous content
-        memset(AuxRx, 0, sizeof (AuxRx)); 
+        // memset doesn't expect to be handed volatile variables,
+        // So casting to (void*) as an ugly solution.
+        // Since we're in the interrupt that might change te value unexpectedly,
+        // I guess that's ok...
+        memset((void*)AuxRx, 0, sizeof (AuxRx)); 
         AuxRx[0] = '!';
         AuxRxPos = 1; // wait for the next character to come in
         break;
     case '?': // beginning of new request
         // start new receive operation, clear previous content
-        memset(AuxRx, 0, sizeof (AuxRx)); 
+        // memset doesn't expect to be handed volatile variables,
+        // So casting to (void*) as an ugly solution.
+        // Since we're in the interrupt that might change te value unexpectedly,
+        // I guess that's ok...
+        memset((void*)AuxRx, 0, sizeof (AuxRx)); 
         AuxRx[0] = '?';
         AuxRxPos = 1; // wait for the next character to come in
         break;
@@ -228,20 +236,24 @@ void __ISR _U4RXInterrupt(void)
         AuxRx[AuxRxPos] = 0; 
 
         /* check for correct commands*/
-        if (strcmp(AuxRx, "?vitals*") == 0) {
+        // strcmp does not expect to be handed volatile variables
+        if (strcmp((void*)AuxRx, "?vitals*") == 0) {
             FlagVitalsRequested = 1;
         }
-        if (strcmp(AuxRx, "?ver*") == 0) {
+        // strcmp does not expect to be handed volatile variables
+        if (strcmp((void*)AuxRx, "?ver*") == 0) {
             FlagVersionRequested = 1;
         }
-        if (strcmp(AuxRx, "?imu*") == 0) {
+        // strcmp does not expect to be handed volatile variables
+        if (strcmp((void*)AuxRx, "?imu*") == 0) {
             FlagImuRequested = 1;
         }
         
         // either a valid command was passed and the appropriate flag set,
         AuxRxPos = 0; 
         // or the command was invalid. Either way, restart receive
-        memset(AuxRx, 0, sizeof (AuxRx)); 
+        // memset doesn't expect to be handed volatile variables,        
+        memset((void*)AuxRx, 0, sizeof (AuxRx)); 
         break;
     default: // not one of the special characters we're looking for
         if (AuxRxPos > 0) { // should already have received ? or !
@@ -253,7 +265,8 @@ void __ISR _U4RXInterrupt(void)
     if (AuxRxPos > COMMANDMAXLENGTH) { 
         // too many chars to be valid, restart rx operation
         AuxRxPos = 0;
-        memset(AuxRx, 0, sizeof (AuxRx));
+        // memset doesn't expect to be handed volatile variables,        
+        memset((void*)AuxRx, 0, sizeof (AuxRx));
         // clear buffer
     }
 }
@@ -724,6 +737,15 @@ int main(void)
     LSM9DS1_init(&imu, &imuconfig);
     Uart_SendStringNL(4, "IMU init done.");
     StartWDT();
+    char source[20] = "";
+    float test = -23.4429028;
+    ftoaFixR(test, source, 2, 10);
+    Uart_SendStringNL(4, source);
+    memset(source,0x00,20);
+    ftoaFixL(test, source, 2, 10);
+    Uart_SendStringNL(4, source);
+    
+    
     
     /*Main loop*/
     while (1) {
