@@ -44,6 +44,7 @@ volatile bool FlagMuxDoDemux = 0; // Flag if there's buffered RX from U3
 // next one is 1 if requested from aux serial, 2 if through mux
 volatile uint8_t FlagVitalsRequested = 0; 
 volatile uint8_t FlagVersionRequested = 0; // send version info to aux
+volatile uint8_t FlagImuCalib = 0;
 // next one is 1 if requested from aux serial, 2 if through mux
 volatile uint8_t FlagImuRequested = 0;
 // next variable to identify that we've requested data from "the other side"
@@ -248,6 +249,9 @@ void __ISR _U4RXInterrupt(void)
         // strcmp does not expect to be handed volatile variables
         if (strcmp((void*)AuxRx, "?imu*") == 0) {
             FlagImuRequested = 1;
+        }
+        if (strcmp((void*)AuxRx, "!imucalib*") == 0) {
+            FlagImuCalib = 1;
         }
         
         // either a valid command was passed and the appropriate flag set,
@@ -494,9 +498,23 @@ void getImu (void)
     }
 }
 
+void calibImu (void)
+{
+    if (ImBottom){
+        Uart_SendStringNL(4, "Cannot calibrate IMU, configured as bottom board.");
+        return;
+    }
+    imuconfig.calibrate = 1;
+    if (LSM9DS1_init(&imu, &imuconfig)){
+        Uart_SendStringNL(4, "IMU calibration successful");
+    }else{
+        Uart_SendStringNL(4, "Error during IMU calibration. Check connections and try again.");
+    }
+    return;
+}
+
 void fillImuData (char * imuData){
-        // will store the message in format 
-        // "p:xxx.yy\nr:xxx.yy\nh:xxx/n"
+        // will store the message in format p:xxx.yy\nr:xxx.yy\nh:xxx/n
         float PitchValue, RollValue = 0;
         float * pRollValue = &RollValue;
         float * pPitchValue = &PitchValue;
@@ -729,23 +747,20 @@ int main(void)
     initHardware(); // Init all the hardware components and setup pins
     Uart_SendStringNL(4, "HW init done.");
     
-    imuconfig.calibrate = 1;
-    imuconfig.enable_accel = 1;
-    imuconfig.enable_gyro = 1;
-    imuconfig.enable_mag = 1;
-    imuconfig.low_power_mode = 0;
     
-    LSM9DS1_init(&imu, &imuconfig);
-    Uart_SendStringNL(4, "IMU init done.");
+    if(ImTop){
+        imuconfig.calibrate = 0;
+        imuconfig.enable_accel = 1;
+        imuconfig.enable_gyro = 1;
+        imuconfig.enable_mag = 1;
+        imuconfig.low_power_mode = 0;
+        if (LSM9DS1_init(&imu, &imuconfig)){
+            Uart_SendStringNL(4, "IMU init done.");
+        }else{
+            Uart_SendStringNL(4, "NO CONNECTION TO IMU");
+        }
+    }
     StartWDT();
-    char source[20] = "";
-    float test = -23.4429028;
-    ftoaFixR(test, source, 2, 10);
-    Uart_SendStringNL(4, source);
-    memset(source,0x00,20);
-    ftoaFixL(test, source, 2, 10);
-    Uart_SendStringNL(4, source);
-    
     
     
     /*Main loop*/
@@ -768,6 +783,11 @@ int main(void)
             FlagImuRequested = 0;
         }
 
+        if (FlagImuCalib) { // calibrate the IMU (should be leveled)
+            calibImu();
+            FlagImuCalib = 0;
+        }
+
         if (RadBuf.DoMux) { // send data from Radiance over mux
             muxRad();
             RadBuf.DoMux = false; // flag might be a new one but we don't care
@@ -781,7 +801,7 @@ int main(void)
         if (FlagTxCMDMux) { // need to send a command over mux
             muxSendCommand();
         }
-
+        
         if (FlagMuxDoDemux) { // a message has come in
             FlagMuxDoDemux = 0; // must be before the loop to avoid race condition:
             /* If a complete new frame comes in during the while loop below,

@@ -70,6 +70,8 @@ void formatVitals(char PrintoutTemp[], char PrintoutHum[]);
 // if flagImuRequested==2 and I'm top -> send p/r/h data over mux
 // if flagImuRequested==2 and not top -> send p/r/h with --- as value
 void getImu (void);
+// calibImu() re-inits the IMU, with calibration enabled
+void calibImu (void);
 void fillImuData (char * imuData);
 void outputMuxedMsg(uint8_t TargetPort, uint16_t MsgLength, uint16_t MsgStartPos);
 // processMuxedCmd() processMuxedCmd handles incoming (from mux) commands:
