@@ -19,7 +19,6 @@
 #define FCY 6000000UL    // Instruction cycle frequency, Hz - required for __delayXXX() to work
 #include "config.h"
 #include "main.h"
-//#include <stdbool.h>
 #include "string.h"                 // for strcat
 #include <stdlib.h>                 // for itoa
 #include <libpic30.h>               // contains delay functions
@@ -761,9 +760,8 @@ int main(void)
         }
     }
     StartWDT();
-    
-    
-    /*Main loop*/
+ 
+     /*Main loop*/
     while (1) {
         ClrWdt(); // kick wdt
         
@@ -782,7 +780,7 @@ int main(void)
             getImu();
             FlagImuRequested = 0;
         }
-
+        
         if (FlagImuCalib) { // calibrate the IMU (should be leveled)
             calibImu();
             FlagImuCalib = 0;
@@ -822,5 +820,4 @@ int main(void)
         }
         __delay_ms(50);
     }
-    return 0;
 }
