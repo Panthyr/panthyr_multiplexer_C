@@ -98,11 +98,12 @@ Flags can be set to 1 (command received from local AUX port) or 2 (received from
 |`?vitals*`|tt2320th58\n bt2234bh24\n|local and remote temp/RH: (position:t for top, b for bottom)(t for temp)(temperature\*100)(position:t for top, b for bottom)(h for relative humidity)(relative humidity in %). Example means 23,20 deg and 58%RH for top, 22,34/24 for bottom.|`FlagVitalsRequested`|
 |`?ver*`|FW Version: v0.4\n|Local firmware version|`FlagVersionRequested`|
 |`?imu*`| p:(-)xxx.yy\n, r:(-)xxx.yy\n, h:xxx/n(remark1)|converted pitch/roll/heading (from top) in degrees (remark2)|`FlagImuRequested`|
-|`!calibimu*`|"OK"|Re-inits IMU with calibration, referencing p/r. IMU should be level when command is executed.|`FlagImuCalib`|
+|`!calibimu*`|"OK"|Re-inits IMU with calibration, referencing p/r. IMU should be level when command is executed.(remark3)|`FlagImuCalib`|
 
 (remark1) leading zeros are not printed
 (remark2) after receiving `?imu*` on aux, the local station checks if it is set to top. If so, it sends the local p/r/h. If not top, it requests the remote station for the data.
 After receiving `?imu*` from the mux, it knows the remote station was not configured as top, so then checks if itself is set to top. If it is top, it returns the data, otherwise it returns --- as values.
+(remark3) As only the top board uses an IMU to measure pitch/roll, this can only be performed on the top unit. In fw v0.4 it is not (yet) possible to do this from the bottom unit.
 
 * TODO: remote FW version?
 
