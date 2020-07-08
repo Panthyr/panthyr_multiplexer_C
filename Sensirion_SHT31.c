@@ -123,7 +123,7 @@ int8_t SHT31_GetData(uint8_t MeasurementData[], uint8_t Repeatability){
        
     // address device and start measurement
     if(I2C1_Write(SHT31_Address,
-                *pCommand+1, // value at second field (is register)
+                *(pCommand+1), // value at second field (is register)
                 pCommand+2, // pointer + 2 is where payload starts
                 *pCommand) // value at pointer (number of bytes to send)
                 < 0){
