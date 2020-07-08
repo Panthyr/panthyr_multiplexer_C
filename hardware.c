@@ -17,8 +17,6 @@ void initHardware( void ){
     InitU4();
     initTimer1();
     initTimer4();
-//    SHT31_InitReset();
-//    LSM9_InitReset();
     checkIfResetByWDT();
     
     /* TP */    
@@ -35,6 +33,15 @@ void initHardware( void ){
     
     /* SWITCH */
     TopBotSwitch_SetDigIn();
+
+    Uart_SendStringNL(4, "HW init done.");
+    Uart_SendString(4, "Board set to ");
+    if(ImTop){
+        Uart_SendStringNL(4, "<TOP>");
+    }
+    if(ImBottom){
+        Uart_SendStringNL(4, "<BOTTOM>");
+    }
 }
 
 void initPPS( void ){
