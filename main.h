@@ -19,38 +19,10 @@
 #include <xc.h> // include processor files - each processor file is guarded.  
 #include <stdint.h>
 #include "LSM9DS1.h"
-#define BUFFLENGTH 1024
+#include "hardware.h"
 
-const char FW_VERSION[5] = "v0.4";
 
-struct CircBuf { // incoming data buffers
-    volatile uint8_t Buff[BUFFLENGTH];
-    volatile uint16_t WritePos; // Write position
-    volatile uint16_t ReadPos; // Read position
-    volatile uint16_t FillLength; // Number of unprocessed chars in array
-    volatile bool DoMux; // Flag if there's buffered RX from Ux
-} RadBuf, IrrBuf = {
-    {0, 0, 0, 0, 0}
-};
 
-struct MuxRxBuff {
-    volatile uint8_t CircBuff[BUFFLENGTH]; // Circular buffer for UART3
-    volatile uint16_t WritePos; // Write position
-    volatile uint16_t MsgStart; // Read position
-    volatile uint16_t MsgLength; // Number of unprocessed chars in array
-    volatile uint8_t TargetPort; // Where should the message go to?
-    volatile uint16_t ExpectedChr; // Counter for number of expected chars
-    volatile uint8_t Preamble; // Counter for preamble
-} MuxRxBuff = {
-    {0}, 0, 0, 0, 0, 0, 0
-};
-
-struct DemuxBuff { // describes the data to be demuxed in the MuxRxBuff
-    volatile uint8_t TargetPort; // Where this message should go
-    volatile uint16_t MsgLength; // Number of received chars in message
-    // next var: position in the MuxRxBuff where the message starts
-    volatile uint16_t MsgStartPos; 
-} DeMuxBuffDescr = {0, 0, 0};
 
 /* METHODS */
 void muxRad(void);
