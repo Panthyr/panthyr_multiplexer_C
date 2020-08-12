@@ -35,7 +35,7 @@
 #include "main_globals.h"   // declarations for global variables (used in interrupts and main)
 
 // Variables
-const char FW_VERSION[5] = "v0.5.1";
+const char FW_VERSION[10] = "v0.5.1";
 
 /* Variables/constants for the UARTS */
 volatile char AuxRx[COMMANDMAXLENGTH] = {0}; // Buffer for the received commands on UART4
