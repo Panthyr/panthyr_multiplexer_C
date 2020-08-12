@@ -10,7 +10,10 @@
  *          Circular buffers restructured
  *          Variables declared as volatile when required
  *          Removed Uart Tx ISR's (and disabled interrupts)
- * v0.5     Moved all interrupts to interrupts.c and globals to main_globals.h
+ * v0.5     
+ * - Moved all interrupts to interrupts.c and globals to main_globals.h
+ * v0.5.1 (12/08/2020)
+ * - version v0.2.1 of Sensirion_SHT31.c (adress 0x44)
  */
 
 /* <> vs "" for includes:
@@ -32,11 +35,9 @@
 #include "main_globals.h"   // declarations for global variables (used in interrupts and main)
 
 // Variables
+const char FW_VERSION[5] = "v0.5.1";
 
 /* Variables/constants for the UARTS */
-
-const char FW_VERSION[5] = "v0.5";
-
 volatile char AuxRx[COMMANDMAXLENGTH] = {0}; // Buffer for the received commands on UART4
 
 /* FLAGS */
@@ -57,9 +58,6 @@ uint8_t SHT31_RH = 0;
 // buffer for command that needs to be send to remote
 char CmdToMux[COMMANDMAXLENGTH] = {0}; 
 //uint16_t MsgNumber = 0; // identifies requests to remote mux/demux board
-
-
-
 
 /* IMU structs */
 imu_config_t imuconfig;
@@ -91,8 +89,9 @@ void muxSendCommand()
 
 void muxRad(void)
 {
-    /* Make working copies of the fill length and read position, 
- They can change if new data comes in during transmit. */
+    /* Data has come in from the radiance port, send it over mux
+       Make working copies of the fill length and read position, 
+       They can change if new data comes in during transmit. */
     uint16_t UxFillLengthCopy = 0; // will hold length of message in buffer
     uint16_t UxRead = 0; // read position in mux
 
@@ -116,8 +115,9 @@ void muxRad(void)
 
 void muxIrr(void)
 {
-    /* Make working copies of the fill length and read position, 
-    They can change if new data comes in during transmit. */
+    /* Data has come in from the radiance port, send it over mux
+       Make working copies of the fill length and read position, 
+       They can change if new data comes in during transmit. */
     unsigned int UxFillLengthCopy = 0; // will hold length of message in buffer
     unsigned int UxRead = 0; // read position in mux
 
@@ -494,7 +494,7 @@ int main(void)
     while (1) {
         ClrWdt(); // kick wdt
         
-        // check if request have been received over mux or aux serial
+        // check if vitals request has been received over mux or aux serial
         if (FlagVitalsRequested > 0) {
             getVitals();
             FlagVitalsRequested = 0; //

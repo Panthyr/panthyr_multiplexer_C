@@ -1,8 +1,11 @@
 /*
  * File:   Sensirion_SHT31.c
  * Author: dieterv
- * v0.2
  * Created on February 3, 2020, 3:09 PM
+ * v0.2
+ * 
+ * v0.2.1 (12/08/2020)
+ * - SHT31_Address set to 0x44 (default address as used on I2C sensor board)
  */
 
 #include <xc.h>
@@ -13,7 +16,7 @@
 #include "I2C1.h"
 
 // Constants (address and commands):
-const uint8_t SHT31_Address = 0x45;
+const uint8_t SHT31_Address = 0x44;
 // constants with commands are in format:
 // {int number of bytes, byte1, byte2}
 const uint8_t CMD_SoftReset[3] = {1, 0x30, 0xA2};

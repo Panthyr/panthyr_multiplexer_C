@@ -175,7 +175,7 @@ void __ISR _U4RXInterrupt(void)
         // start new receive operation, clear previous content
         // memset doesn't expect to be handed volatile variables,
         // So casting to (void*) as an ugly solution.
-        // Since we're in the interrupt that might change te value unexpectedly,
+        // Since we're in the interrupt that might change the value unexpectedly,
         // I guess that's ok...
         memset((void*)AuxRx, 0, sizeof (AuxRx)); 
         AuxRx[0] = '?';
