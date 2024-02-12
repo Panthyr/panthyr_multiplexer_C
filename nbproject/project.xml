@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://www.netbeans.org/ns/project/1">
+    <type>com.microchip.mplab.nbide.embedded.makeproject</type>
+    <configuration>
+        <data xmlns="http://www.netbeans.org/ns/make-project/1">
+            <name>Hypermaq_Topside</name>
+            <creation-uuid>1666e9f4-c1dd-47a7-af0a-c3dcf3f01efc</creation-uuid>
+            <make-project-type>0</make-project-type>
+            <c-extensions>c</c-extensions>
+            <cpp-extensions/>
+            <header-extensions>h</header-extensions>
+            <asminc-extensions/>
+            <sourceEncoding>ISO-8859-1</sourceEncoding>
+            <make-dep-projects/>
+            <sourceRootList>
+                <sourceRootElem>C:\Program Files\Microchip\xc16\v2.00\support\generic\h</sourceRootElem>
+                <sourceRootElem>C:\Program Files\Microchip\xc16\v2.00\support\PIC24F\h</sourceRootElem>
+                <sourceRootElem>C:\Program Files\Microchip\xc16\v2.00\include</sourceRootElem>
+                <sourceRootElem>C:\Program Files\Microchip\MPLABX\v6.00\packs\Microchip\PIC24F-GA-GB_DFP</sourceRootElem>
+            </sourceRootList>
+            <confList>
+                <confElem>
+                    <name>default</name>
+                    <type>2</type>
+                </confElem>
+            </confList>
+            <formatting>
+                <project-formatting-style>false</project-formatting-style>
+            </formatting>
+        </data>
+    </configuration>
+</project>
