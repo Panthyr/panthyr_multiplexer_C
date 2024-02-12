@@ -148,3 +148,7 @@ Receive message from remote:
 * `ProcessMuxedCmd` checks if it is a reply (starting with r)
 * If it is a reply, checks if any `FlagWaitingForXXX` are set. If none, discards message.
 * If not a reply, checks against known commands and sets corresponding flag to 2 (received from remote)
+
+## 5. Acknowledgements
+
+Uses the [LSM9DS1](https://github.com/sparkfun/LSM9DS1_Breakout) code from Sparkfun to interface the IMU sensor.
