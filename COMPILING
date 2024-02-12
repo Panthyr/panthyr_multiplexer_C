@@ -1,14 +1,27 @@
 
-# Compiling for the PIC24FJ128GB204
+# Opening and compiling in MPLABX
+
+## First
+
+- Clone repository
+- Update paths in [project config](nbproject/project.xml) to reflect new locations
 
 ## IDE
 
-Written using [Microchip MPLABX v6.00](https://ww1.microchip.com/downloads/aemDocuments/documents/DEV/ProductDocuments/SoftwareTools/MPLABX-v6.00-windows-installer.exe).
+Written using Microchip MPLABX v6.15. Downloads for:
+
+- [Windows](https://ww1.microchip.com/downloads/aemDocuments/documents/DEV/ProductDocuments/SoftwareTools/MPLABX-v6.20-windows-installer.exe)
+- [Linux](https://ww1.microchip.com/downloads/aemDocuments/documents/DEV/ProductDocuments/SoftwareTools/MPLABX-v6.20-linux-installer.tar)
 
 ## Compiler
 
-Last version of the XC16 compiler to include `itoa` is version [v1.70](https://ww1.microchip.com/downloads/en/DeviceDoc/xc16-v1.70-full-install-windows64-installer.exe).
+Last version of the XC16 compiler to include `itoa` is version v1.70.
+
+Downloads:
+
+- [Windows](https://ww1.microchip.com/downloads/en/DeviceDoc/xc16-v1.70-full-install-windows64-installer.exe)
+- [Linux](https://ww1.microchip.com/downloads/en/DeviceDoc/xc16-v1.70-full-install-linux64-installer.run)
 
 ## Device pack
 
-1.8.217
+1.8.217 for the PIC24FJ128GB204
