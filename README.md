@@ -3,6 +3,10 @@
 Firmware for the [Microchip PIC24FJ128GB204](https://www.microchip.com/wwwproducts/en/PIC24FJ128GB204) microcontroller on the (de)multiplexer board.
 Compiled using the [Microchip XC16 compiler](https://www.microchip.com/mplab/compilers).
 
+## 0. Setting up IDE and compiler
+
+See [COMPILING](COMPILING).
+
 ## 1. Firmware
 
 ### High level overview
@@ -14,14 +18,14 @@ Most work is done in the UART RX interrupt `_UxRXInterrupt` functions, as they w
 
 * Started just before the main loop, after HW init
 * Prescaler (`FWPSA` , config word 1 bit 4) and postscaler (`WDTPS`, cw1 bit 3-0) are both set to 128, resulting in about 512ms timeout
-* After HW initialization, `RCONbits.WDTO` is checked. If set, all UARTS send out “---Reset by WDT---\n”
+* After HW initialization, `RCONbits.WDTO` is checked. If set, all UARTS send out `“---Reset by WDT---\n”`
 
 ### Timer 1
 
 * `T1CON = 0x020` and `PR1 = 0x3A8`: about 10ms (0.06% error)
 * Used solely for heartbeat **LED_Heartbeat** (orange) and boot led **LED_Boot** (red)
 * **LED_Boot** is lit after boot and remains on for 100PWM cycles (~1s). Lit again in case of errors.
-* **LED_Heartbeat** is software PWM driven. Might be migrated to HW driven solution.
+* **LED_Heartbeat** is software PWM driven.
 
 ### Timer 4
 
@@ -69,9 +73,9 @@ Most work is done in the UART RX interrupt `_UxRXInterrupt` functions, as they w
 
 ## 3. Handling received muxed packets
 
-When the main loop sees `FlagMuxDoDemux` set it checks the target port:
+When the main loop sees `FlagMuxDoDemux` set it checks the target port of the incoming muxed packet:
 
-* Packets for UART1 (radiance) or UART2 are then transmitted out of the respective port.
+* Packets for UART1 (radiance) or UART2 (irradiance) are then transmitted out of the respective port.
 * Packets for port 0 are to be handled by the controller internally. These are handled by `processMuxedCmd`. See "Handling of incoming commands (from MUX/UART3)"
 
 ## 4. Communication with/between the microcontrollers
@@ -85,7 +89,7 @@ Requests/commands have the following format:
 * `rxxxxxxx*` for replies to requests (or cmd ack) -> only used over the muxed port, not UART4/AUX!
 No CR/LF is required (and is ignored if sent).
 
-The two microcontrollers can communicate with each other. To do so, they send a message that is embedded in the usual form _(0y)_xxxx\CR over the multiplex (UART3) port at 57600 baud. Target port to be used is 0.
+The two microcontrollers can communicate with each other. To do so, they send a message that is embedded in the usual form `_(0y)_xxxx\CR` over the multiplex (UART3) port at 57600 baud. Target port to be used is 0.
 
 ### Currently supported commands
 
@@ -126,7 +130,7 @@ If the command requires communication with the remote controller, the message is
 
 * It checks the validity of the message format.
 * If  it is a known command, it sets the corresponding flag for the main loop to handle.
-* If the message is a response to a request sent by itself (starts with "r"), it checks to see if there are any "waiting for reply"flags set. If one is set, it handles the message (output on UART4/AUX in case of `?vitals*`) and clears the flag.
+* If the message is a response to a request sent by itself (starts with "r"), it checks to see if there are any "waiting for reply"flags set. If one is set, it handles the message (output on UART4/AUX in case of `?vitals*` or `?imu*`) and clears the flag.
 * A request for vitals (`?vitals*`) sets `FlagVitalsRequested = 2`. Value 2 of this variable tells the handling function that the information is request by the remote and should be sent over the mux.
 
 ### Handling of outgoing commands (over MUX/UART3 to remote)
