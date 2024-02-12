@@ -11,10 +11,16 @@
  *          - Circular buffers restructured
  *          - Variables declared as volatile when required
  *          - Removed Uart Tx ISR's (and disabled interrupts)
+ *
  * v0.5     
  *          - Moved all interrupts to interrupts.c and globals to main_globals.h
+ *
  * v0.5.1 (12/08/2020)
  *          - version v0.2.1 of Sensirion_SHT31.c (adress 0x44)
+ * 
+ * v0.5.2 (02/2024)
+ *          - Added: can query bottom board for IMU data from top
+ *          - Added: can query version from top board if bottom
  */
 
 #define FCY 6000000UL    // Instruction cycle frequency, Hz - required for __delayXXX() to work
@@ -32,7 +38,7 @@
 #include "main_globals.h"   // declarations for global variables (used in interrupts and main)
 
 // Variables
-const char FW_VERSION[10] = "v0.5.1";
+const char FW_VERSION[10] = "v0.5.2";
 
 /* Variables/constants for the UARTS */
 volatile char AuxRx[COMMANDMAXLENGTH] = {0}; // Buffer for the received commands on UART4
@@ -45,8 +51,10 @@ volatile uint8_t FlagVersionRequested = 0; // send version info to aux
 volatile uint8_t FlagImuCalib = 0;
 // next one is 1 if requested from aux serial, 2 if through mux
 volatile uint8_t FlagImuRequested = 0;
-// next variable to identify that we've requested data from "the other side"
+// next variable to identify that we've requested vitals from "the other side"
 volatile bool FlagWaitingForRemoteVitals = 0; 
+// next variable to identify that we've requested imu data from "the other side"
+volatile bool FlagWaitingForRemoteImu = 0; 
 bool FlagTxCMDMux = 0; // to flag that we need to send a command over the mux
 
 /* WORKING VARIABLES */
@@ -54,7 +62,6 @@ int16_t SHT31_Temp = 0;
 uint8_t SHT31_RH = 0;
 // buffer for command that needs to be send to remote
 char CmdToMux[COMMANDMAXLENGTH] = {0}; 
-//uint16_t MsgNumber = 0; // identifies requests to remote mux/demux board
 
 /* IMU structs */
 imu_config_t imuconfig;
@@ -201,8 +208,9 @@ void getImu (void)
         return;
     }
     if (FlagImuRequested == 1 && ImBottom){
-        //send imuData request to remote
-        
+        memcpy(CmdToMux, "?imu*", 6);
+        FlagTxCMDMux = 1;
+        FlagWaitingForRemoteImu = 1;
         return;
     }
     if (FlagImuRequested == 2){
@@ -214,7 +222,7 @@ void getImu (void)
         }
         // if ImTop, imuData has already been populated
         // queue data to send to mux
-        char TempReply[15] = "r";
+        char TempReply[40] = "r";
         strcat(TempReply, imuData);
         strcat(TempReply, "*");
         memcpy(CmdToMux, TempReply, sizeof (TempReply));
@@ -264,7 +272,7 @@ void fillImuData (char * imuData){
         strcat(imuData,"h:");
         itoa(temp,Heading,10);
         strcat(imuData, temp);
-        strcat(imuData,"\n");
+//        strcat(imuData,"\n");
 }
 
 void outputMuxedMsg(uint8_t TargetPort, uint16_t MsgLength, uint16_t MsgStartPos)
@@ -292,15 +300,16 @@ void processMuxedCmd(uint16_t MsgLength, uint16_t MsgStartPos)
 
     if ((ProcCommand[0] == 'r')&&(ProcCommand[MsgLength - 1] == '*')) {
         // this is a reply (starting with r, ending with *)
-        if (FlagWaitingForRemoteVitals) {
-            // TODO: send received data out on mux
+        if (FlagWaitingForRemoteVitals || FlagWaitingForRemoteImu) {
             uint8_t i = 1;
             while (i < MsgLength - 1) { // don't send the last character (*))
                 Uart_SendChar(4, ProcCommand[i++]);
             }
             Uart_SendChar(4, '\n');
             FlagWaitingForRemoteVitals = 0;
+            FlagWaitingForRemoteImu = 0;
         }
+            
         // add possible FlagWaitingForXXX flags
         return;
     }
@@ -470,8 +479,9 @@ int main(void)
     /*Initialize*/
     LED_Boot_SetHigh(); // After startup, light red led for 1 second (100 PWM cycles)
     initHardware(); // Init all the hardware components and setup pins
-    Uart_SendString(4, "Firmware version: ");
-    Uart_SendStringNL(4, FW_VERSION);
+//    Uart_SendString(4, "Firmware version: ");
+//    Uart_SendStringNL(4, FW_VERSION);
+    FlagVersionRequested = 1;
 
     
     
