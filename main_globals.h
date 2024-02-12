@@ -11,16 +11,6 @@
 #define COMMANDMAXLENGTH 50
 #define BUFFLENGTH 1024
 
-//struct CircBuf { // incoming data buffers
-//    volatile uint8_t Buff[BUFFLENGTH];
-//    volatile uint16_t WritePos; // Write position
-//    volatile uint16_t ReadPos; // Read position
-//    volatile uint16_t FillLength; // Number of unprocessed chars in array
-//    volatile bool DoMux; // Flag if there's buffered RX from Ux
-//} RadBuf, IrrBuf = {
-//    {0, 0, 0, 0, 0}
-//};
-
 struct CircBuf { // incoming data buffers
     volatile uint8_t Buff[BUFFLENGTH];
     volatile uint16_t WritePos; // Write position

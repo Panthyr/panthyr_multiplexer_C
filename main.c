@@ -1,25 +1,22 @@
 /*
  * Hypermaq/Panthyr serial port multiplex
- * SW version v0.5
+ * SW version v0.5.1
  * For HW TOP v0.2, Bottom v0.2
  * v0.1 of mux board has only 3 serial ports. The serial port that is labeled "mux"
  * is connected to the pins that connect to uart4 on newer hardware...
  *
- *  * v0.4     Added communication/protocol between local and remote
- *          Pragma's moved to config.h
- *          Circular buffers restructured
- *          Variables declared as volatile when required
- *          Removed Uart Tx ISR's (and disabled interrupts)
+ * v0.4     
+ *          - Added communication/protocol between local and remote
+ *          - Pragma's moved to config.h
+ *          - Circular buffers restructured
+ *          - Variables declared as volatile when required
+ *          - Removed Uart Tx ISR's (and disabled interrupts)
  * v0.5     
- * - Moved all interrupts to interrupts.c and globals to main_globals.h
+ *          - Moved all interrupts to interrupts.c and globals to main_globals.h
  * v0.5.1 (12/08/2020)
- * - version v0.2.1 of Sensirion_SHT31.c (adress 0x44)
+ *          - version v0.2.1 of Sensirion_SHT31.c (adress 0x44)
  */
 
-/* <> vs "" for includes:
-   #include <x.h> --> first look among the compiler standard header files
-   #include "x.h" --> first look in the program directory
- */
 #define FCY 6000000UL    // Instruction cycle frequency, Hz - required for __delayXXX() to work
 #include <libpic30.h>               // contains delay functions
 #include "config.h"
