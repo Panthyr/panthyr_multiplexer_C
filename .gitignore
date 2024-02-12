@@ -6,8 +6,6 @@
 *.obj.dmp
 *.bak
 html/
-nbproject/private/
-nbproject/Package-*.bash
 build/
 nbbuild/
 dist/
@@ -15,9 +13,8 @@ nbdist/
 nbactions.xml
 nb-configuration.xml
 funclist
-nbproject/Makefile-*
 disassembly/
-nbproject/
+.generated_files/
 
 *.map
 
@@ -73,4 +70,4 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
-MyConfig.mc3
+MyConfig.mc3.bak

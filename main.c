@@ -24,7 +24,7 @@
 #include <libpic30.h>               // contains delay functions
 #include "config.h"
 #include "main.h"
-#include "string.h"                 // for strcat
+#include <string.h>                 // for strcat
 #include <stdlib.h>                 // for itoa
 #include "hardware.h"               // 
 #include "uart.h"
@@ -473,6 +473,8 @@ int main(void)
     /*Initialize*/
     LED_Boot_SetHigh(); // After startup, light red led for 1 second (100 PWM cycles)
     initHardware(); // Init all the hardware components and setup pins
+    Uart_SendString(4, "Firmware version: ");
+    Uart_SendStringNL(4, FW_VERSION);
 
     
     

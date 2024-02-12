@@ -1,0 +1,14 @@
+
+# Compiling for the PIC24FJ128GB204
+
+## IDE
+
+Written using [Microchip MPLABX v6.00](https://ww1.microchip.com/downloads/aemDocuments/documents/DEV/ProductDocuments/SoftwareTools/MPLABX-v6.00-windows-installer.exe).
+
+## Compiler
+
+Last version of the XC16 compiler to include `itoa` is version [v1.70](https://ww1.microchip.com/downloads/en/DeviceDoc/xc16-v1.70-full-install-windows64-installer.exe).
+
+## Device pack
+
+1.8.217
