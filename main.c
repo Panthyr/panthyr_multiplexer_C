@@ -48,7 +48,7 @@ volatile bool FlagMuxDoDemux = 0; // Flag if there's buffered RX from U3
 // next one is 1 if requested from aux serial, 2 if through mux
 volatile uint8_t FlagVitalsRequested = 0; 
 volatile uint8_t FlagVersionRequested = 0; // send version info to aux
-volatile uint8_t FlagImuCalib = 0;
+volatile uint8_t FlagImuCalibRequested = 0;
 // next one is 1 if requested from aux serial, 2 if through mux
 volatile uint8_t FlagImuRequested = 0;
 // next variable to identify that we've requested vitals from "the other side"
@@ -321,6 +321,10 @@ void processMuxedCmd(uint16_t MsgLength, uint16_t MsgStartPos)
     if (strcmp(ProcCommand, "?imu*") == 0) {
         FlagImuRequested = 2;
     }
+    if (strcmp(ProcCommand, "!calibimu*") == 0) {
+        FlagCalibRequested = 2;
+    }
+    
 }
 
 uint8_t printIMUData(uint8_t port, 
@@ -519,9 +523,9 @@ int main(void)
             FlagImuRequested = 0;
         }
         
-        if (FlagImuCalib) { // calibrate the IMU (should be leveled)
+        if (FlagImuCalibRequested) { // calibrate the IMU (should be leveled)
             calibImu();
-            FlagImuCalib = 0;
+            FlagImuCalibRequested = 0;
         }
 
         if (RadBuf.DoMux) { // send data from Radiance over mux
