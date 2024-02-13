@@ -71,3 +71,10 @@ Module.symvers
 Mkfile.old
 dkms.conf
 MyConfig.mc3.bak
+nbproject/Makefile-default.mk
+nbproject/Makefile-genesis.properties
+nbproject/Makefile-impl.mk
+nbproject/Makefile-variables.mk
+nbproject/private/configurations.xml
+nbproject/private/private.xml
+.gitignore
