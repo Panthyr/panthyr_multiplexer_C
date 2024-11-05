@@ -21,6 +21,9 @@
  * v0.5.2 (02/2024)
  *          - Added: can query bottom board for IMU data from top
  *          - Added: can query version from top board if bottom
+ * 
+ * 
+ * !!!!!!!!! USE XC16 V1.7 (includes itoa/utoa) !!!!!!!!!
  */
 
 #define FCY 6000000UL    // Instruction cycle frequency, Hz - required for __delayXXX() to work
@@ -55,6 +58,8 @@ volatile uint8_t FlagImuRequested = 0;
 volatile bool FlagWaitingForRemoteVitals = 0; 
 // next variable to identify that we've requested imu data from "the other side"
 volatile bool FlagWaitingForRemoteImu = 0; 
+volatile bool FlagCalibRequested = 0; 
+volatile bool FlagImuCalib = 0;
 bool FlagTxCMDMux = 0; // to flag that we need to send a command over the mux
 
 /* WORKING VARIABLES */

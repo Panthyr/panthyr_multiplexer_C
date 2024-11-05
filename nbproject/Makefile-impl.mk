@@ -24,7 +24,7 @@ CLEAN_SUBPROJECTS=${CLEAN_SUBPROJECTS_${SUBPROJECTS}}
 
 
 # Project Name
-PROJECTNAME=Hypermaq_Topside.X
+PROJECTNAME=multiplexer_top_bottom
 
 # Active Configuration
 DEFAULTCONF=default

@@ -17,7 +17,7 @@ Most work is done in the UART RX interrupt `_UxRXInterrupt` functions, as they w
 ### Watchdog Timer
 
 * Started just before the main loop, after HW init
-* Prescaler (`FWPSA` , config word 1 bit 4) and postscaler (`WDTPS`, cw1 bit 3-0) are both set to 128, resulting in about 512ms timeout
+* Prescaler (`FWPSA` , config word 1 bit 4) is set to 1 (divide by 128), postscaler (`WDTPS`, config word 1 bit 3-0) is set to 512, resulting in about 512ms period
 * After HW initialization, `RCONbits.WDTO` is checked. If set, all UARTS send out `“---Reset by WDT---\n”`
 
 ### Timer 1

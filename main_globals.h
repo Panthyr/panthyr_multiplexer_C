@@ -52,6 +52,6 @@ extern volatile uint8_t FlagVitalsRequested;
 extern volatile uint8_t FlagVersionRequested; // send version info to aux
 // next one is 1 if requested from aux serial, 2 if through mux
 extern volatile uint8_t FlagImuRequested;
-extern volatile uint8_t FlagImuCalib;
+extern volatile bool FlagImuCalib;
 #endif	/* MAIN_GLOBALS_H */
 
