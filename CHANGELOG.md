@@ -15,3 +15,8 @@
 ## v0.5.1 (12/08/2020)
 
 - version v0.2.1 of `Sensirion_SHT31.c` (adress 0x44)
+
+## v0.5.2 (02/2024)
+
+- Added: can query bottom board for IMU data from top
+- Added: can query version from top board if bottom
