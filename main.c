@@ -168,6 +168,8 @@ uint8_t getVitals(void)
     }
 
     // get the local values
+    SHT31_Temp = 0;
+    SHT31_RH = 0;
     SHT31_SingleShot(&SHT31_Temp, &SHT31_RH, 3);
     // create message, regardless of where it should be sent to
     formatVitals(PrintoutTemp, PrintoutHum);

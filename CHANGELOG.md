@@ -1,5 +1,9 @@
 # Changelog
 
+## Not yet released
+
+- fix: Reset vitals values before each query
+
 ## v0.4
 
 - Added communication/protocol between local and remote
@@ -20,3 +24,4 @@
 
 - Added: can query bottom board for IMU data from top
 - Added: can query version from top board if bottom
+
